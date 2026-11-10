@@ -11,3 +11,5 @@ build/
 dist/
 Reproduce/**/results/
 lightning_logs/
+Reproduce/**/data/
+Reproduce/**/prepared/

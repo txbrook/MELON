@@ -1,0 +1,5 @@
+# Install MELON following the linked Tutorials first. These are analysis extras.
+anndata>=0.10
+scanpy>=1.10
+matplotlib>=3.7
+umap-learn>=0.5

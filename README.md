@@ -6,7 +6,7 @@ MELON (Multi-modal lEarning framework for spatial muLti-Omics integratioN) is a 
 
 ## Reproduce
 
-The [`/Reproduce`](Reproduce/) directory contains scripts and resources to reproduce the spatial multi-omics integration and clustering results of MELON, including modality preprocessing, spatially informed joint embedding learning, spatial domain identification, and clustering with multiple methods. Please refer to the instructions and scripts in this directory to replicate the corresponding analyses presented in the paper.
+The [`/Reproduce`](Reproduce/) directory contains scripts and resources to reproduce the spatial multi-omics integration and clustering results of MELON in human tonsil, five-modality mouse brain, human lymph node, mouse E13 embryo, and mouse E15.5 brain, including spatially informed joint embedding learning, spatial domain identification, and clustering analyses. Please refer to the instructions and scripts in this directory to replicate the corresponding analyses presented in the paper.
 
 ## Usage && installation
 

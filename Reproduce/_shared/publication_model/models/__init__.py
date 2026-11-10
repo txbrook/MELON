@@ -1,0 +1,1 @@
+from .mmfusion import MMFusion

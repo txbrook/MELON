@@ -60,7 +60,7 @@ melon_pkg = "MELON"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["MELON/tests"]
+testpaths = ["MELON/tests", "Reproduce/tests"]
 filterwarnings = [
   "ignore:Failed to load image Python extension:UserWarning",
   "ignore:GPU available but not used:UserWarning",
