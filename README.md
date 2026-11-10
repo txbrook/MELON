@@ -6,11 +6,11 @@ MELON (Multi-modal lEarning framework for spatial muLti-Omics integratioN) is a 
 
 ## Reproduce
 
-The [`code/`](code/) directory contains the MELON implementation and scripts for training, spatial clustering, and reproducing the mouse E15.5 brain RNA–ATAC example.
+The [`code/`](code/) directory contains scripts for reproducing MELON's joint embeddings and spatial clustering results.
 
 ## Usage and installation
 
-Please see the [installation guide](code/melon_pkg/README.md#install) and follow the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/) for usage and worked examples.
+Please follow the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/) for usage and the [installation guide](code/melon_pkg/README.md#install) for setup.
 
 ## Citation
 
