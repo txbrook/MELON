@@ -8,9 +8,9 @@ MELON (Multi-modal lEarning framework for spatial muLti-Omics integratioN) is a 
 
 The [`code/`](code/) directory contains scripts for reproducing MELON's joint embeddings and spatial clustering results.
 
-## Usage and installation
+## Usage && installation
 
-Please follow the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/) for usage and the [installation guide](code/melon_pkg/README.md#install) for setup.
+Please follow the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/) for installation and Usage.
 
 ## Citation
 
