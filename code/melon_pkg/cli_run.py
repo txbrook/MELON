@@ -2,7 +2,6 @@
 import argparse
 import json
 import os
-import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -20,8 +19,6 @@ import torch
 
 
 REPO_ROOT = Path(__file__).resolve().parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 
 from melon_pkg.api import MELON
 
@@ -43,35 +40,6 @@ def normalize_df(df: pd.DataFrame, label: str, target_sum: float = 1e4) -> pd.Da
     out = np.log1p(out).astype(np.float32, copy=False)
     print("  - Normalization complete.")
     return out
-
-
-def build_run_invocation_metadata() -> dict[str, object]:
-    if getattr(sys, "orig_argv", None):
-        argv = [str(arg) for arg in sys.orig_argv]
-    else:
-        argv = [sys.executable, str(Path(__file__).resolve()), *[str(arg) for arg in sys.argv[1:]]]
-
-    return {
-        "argv": argv,
-        "command_line": shlex.join(argv),
-        "cwd": os.getcwd(),
-        "python_executable": sys.executable,
-        "script_path": str(Path(__file__).resolve()),
-    }
-
-
-def save_run_invocation(output_dir: str | Path, invocation: dict[str, object]) -> None:
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    command_path = output_dir / "run_command.sh"
-    command_path.write_text(f"{invocation['command_line']}\n", encoding="utf-8")
-
-    metadata_path = output_dir / "run_invocation.json"
-    with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump(invocation, f, indent=2, sort_keys=True)
-
-    print(f"Saved run command to {command_path}")
 
 
 def tfidf_lsi_modality(
@@ -153,7 +121,6 @@ def save_model_artifacts(
     output_dir: str,
     model: torch.nn.Module,
     args: argparse.Namespace,
-    invocation: dict[str, object],
     mod1_shape: tuple[int, int],
     mod2_shape: tuple[int, int],
     coords_shape: tuple[int, int],
@@ -177,6 +144,7 @@ def save_model_artifacts(
             "gat_dropout": float(args.gat_dropout),
             "no_augment": bool(args.no_augment),
             "no_spatial_attention": bool(args.no_spatial_attention),
+            "export_with_attention_mask": bool(args.export_with_attention_mask),
             "feature_selection": str(args.feature_selection),
             "atac_preprocess": str(args.atac_preprocess),
             "atac_lsi_components": int(args.atac_lsi_components),
@@ -193,8 +161,6 @@ def save_model_artifacts(
             "mod1_feature_key": args.mod1_feature_key,
             "mod2_feature_key": args.mod2_feature_key,
             "skip_normalize": bool(args.skip_normalize),
-            "skip_normalize_mod1": bool(args.skip_normalize_mod1),
-            "skip_normalize_mod2": bool(args.skip_normalize_mod2),
         },
         "data_shapes": {
             "mod1": list(mod1_shape),
@@ -202,14 +168,9 @@ def save_model_artifacts(
             "coords": list(coords_shape),
             "neighbor_mask_present": bool(neighbor_mask_present),
         },
-        "invocation": invocation,
     }
     with open(artifacts_dir / "model_config.json", "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, sort_keys=True)
-
-    (artifacts_dir / "run_command.sh").write_text(f"{invocation['command_line']}\n", encoding="utf-8")
-    with open(artifacts_dir / "run_invocation.json", "w", encoding="utf-8") as f:
-        json.dump(invocation, f, indent=2, sort_keys=True)
 
     with open(artifacts_dir / "model_architecture.txt", "w", encoding="utf-8") as f:
         f.write("=== MELON Model ===\n")
@@ -245,10 +206,11 @@ def save_model_artifacts(
     except Exception as exc:
         safetensors_status = f"skipped ({exc.__class__.__name__}: {exc})"
 
-    # Snapshot local source code used for this run.
-    shutil.copy2(REPO_ROOT / "run_melon.py", code_dir / "run_melon.py")
-    for src in (REPO_ROOT / "melon_pkg").rglob("*.py"):
-        rel = src.relative_to(REPO_ROOT)
+    # Snapshot the resolved package source used for this run.
+    shutil.copy2(Path(__file__).resolve(), code_dir / "cli_run.py")
+    pkg_root = Path(sys.modules["melon_pkg"].__file__).resolve().parent
+    for src in pkg_root.rglob("*.py"):
+        rel = src.relative_to(pkg_root.parent)
         dst = code_dir / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -285,8 +247,6 @@ def load_from_h5ad(
     mod1_h5ad: str,
     mod2_h5ad: str,
     coords_csv: str | None,
-    skip_normalize_mod1: bool,
-    skip_normalize_mod2: bool,
     feature_selection: str,
     atac_preprocess: str,
     atac_lsi_components: int,
@@ -306,6 +266,18 @@ def load_from_h5ad(
         raise ValueError("No overlapping barcodes between mod1 and mod2.")
     adata_mod1 = adata_mod1[common].copy()
     adata_mod2 = adata_mod2[common].copy()
+
+    if feature_selection == "mod1_hvg":
+        top_n = min(3000, adata_mod1.n_vars)
+        if top_n < adata_mod1.n_vars:
+            try:
+                sc.pp.highly_variable_genes(adata_mod1, n_top_genes=top_n, flavor="seurat_v3")
+            except Exception:
+                sc.pp.highly_variable_genes(adata_mod1, n_top_genes=top_n, flavor="seurat")
+            adata_mod1 = adata_mod1[:, adata_mod1.var.highly_variable].copy()
+            print(f"Feature selection: mod1_hvg ({top_n} genes)")
+        else:
+            print("Feature selection: mod1_hvg requested but all genes are retained.")
 
     if coords_csv:
         coords_df = pd.read_csv(coords_csv, index_col=0)
@@ -331,9 +303,6 @@ def load_from_h5ad(
     mod1_df = pd.DataFrame(to_numpy(adata_mod1.X), index=adata_mod1.obs_names, columns=adata_mod1.var_names)
     mod2_df = pd.DataFrame(to_numpy(adata_mod2.X), index=adata_mod2.obs_names, columns=adata_mod2.var_names)
 
-    if not skip_normalize_mod1:
-        mod1_df = normalize_df(mod1_df, "mod1")
-
     if atac_preprocess == "tfidf_lsi":
         mod2_df = tfidf_lsi_modality(
             mod2_df,
@@ -343,10 +312,6 @@ def load_from_h5ad(
             drop_first=atac_lsi_drop_first,
             standardize=atac_lsi_standardize,
         )
-    elif not skip_normalize_mod2:
-        mod2_df = normalize_df(mod2_df, "mod2")
-
-    mod1_df = select_mod1_top_features(mod1_df, feature_selection)
 
     return mod1_df, mod2_df, coords_df
 
@@ -393,8 +358,7 @@ def load_from_raw_h5(
     coords_csv: str,
     mod1_feature_key: str,
     mod2_feature_key: str,
-    skip_normalize_mod1: bool,
-    skip_normalize_mod2: bool,
+    skip_normalize: bool,
     feature_selection: str,
     atac_preprocess: str,
     atac_lsi_components: int,
@@ -426,7 +390,7 @@ def load_from_raw_h5(
     mod2_df = mod2_df.loc[common]
     coords_df = coords_df.loc[common, ["x", "y"]].copy()
 
-    if not skip_normalize_mod1:
+    if not skip_normalize:
         mod1_df = normalize_df(mod1_df, "mod1")
 
     if atac_preprocess == "tfidf_lsi":
@@ -438,19 +402,12 @@ def load_from_raw_h5(
             drop_first=atac_lsi_drop_first,
             standardize=atac_lsi_standardize,
         )
-    elif not skip_normalize_mod2:
+    elif not skip_normalize:
         mod2_df = normalize_df(mod2_df, "mod2")
 
     mod1_df = select_mod1_top_features(mod1_df, feature_selection)
 
     return mod1_df, mod2_df, coords_df
-
-
-def resolve_normalization_flags(args: argparse.Namespace) -> tuple[bool, bool]:
-    """Resolve per-modality normalization flags with backward compatibility."""
-    skip_mod1 = bool(args.skip_normalize or args.skip_normalize_mod1)
-    skip_mod2 = bool(args.skip_normalize or args.skip_normalize_mod2)
-    return skip_mod1, skip_mod2
 
 
 def main():
@@ -462,21 +419,7 @@ def main():
     parser.add_argument("--coords_csv", type=str, default=None)
     parser.add_argument("--mod1_feature_key", type=str, default="gene")
     parser.add_argument("--mod2_feature_key", type=str, default="peak")
-    parser.add_argument(
-        "--skip_normalize",
-        action="store_true",
-        help="Legacy flag: skip normalization for both mod1 and mod2.",
-    )
-    parser.add_argument(
-        "--skip_normalize_mod1",
-        action="store_true",
-        help="Skip normalization for mod1/RNA only.",
-    )
-    parser.add_argument(
-        "--skip_normalize_mod2",
-        action="store_true",
-        help="Skip normalization for mod2/ATAC only (ignored if --atac_preprocess tfidf_lsi).",
-    )
+    parser.add_argument("--skip_normalize", action="store_true")
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--seed", type=int, default=2025)
     parser.add_argument("--epochs", type=int, default=30)
@@ -514,10 +457,18 @@ def main():
     parser.add_argument("--no_spatial_attention", action="store_true")
     parser.add_argument("--shuffle_batches", action="store_true")
     parser.add_argument(
-        "--save_model_artifacts",
+        "--export_with_attention_mask",
+        dest="export_with_attention_mask",
         action="store_true",
-        help="If set, export model_artifacts (weights/config/code snapshot).",
+        help="Use spatial attention mask when exporting embeddings (default: enabled).",
     )
+    parser.add_argument(
+        "--no_export_with_attention_mask",
+        dest="export_with_attention_mask",
+        action="store_false",
+        help="Disable spatial attention mask during embedding export.",
+    )
+    parser.set_defaults(export_with_attention_mask=True)
     args = parser.parse_args()
 
     has_h5ad_inputs = bool(args.mod1_h5ad and args.mod2_h5ad)
@@ -527,19 +478,9 @@ def main():
     if has_h5ad_inputs and has_raw_inputs:
         parser.error("Use either h5ad inputs or raw h5 inputs, not both.")
 
-    skip_normalize_mod1, skip_normalize_mod2 = resolve_normalization_flags(args)
-    print(
-        "Preprocess flags: "
-        f"skip_normalize_mod1={skip_normalize_mod1}, "
-        f"skip_normalize_mod2={skip_normalize_mod2}, "
-        f"atac_preprocess={args.atac_preprocess}"
-    )
-
     os.makedirs(args.output_dir, exist_ok=True)
     os.environ.setdefault("NUMBA_CACHE_DIR", "/tmp/numba_cache")
     os.environ.setdefault("MPLCONFIGDIR", "/tmp/mplcache")
-    invocation = build_run_invocation_metadata()
-    save_run_invocation(args.output_dir, invocation)
 
     print(f"Using melon_pkg from: {Path(sys.modules['melon_pkg'].__file__).resolve()}")
 
@@ -548,8 +489,6 @@ def main():
             mod1_h5ad=args.mod1_h5ad,
             mod2_h5ad=args.mod2_h5ad,
             coords_csv=args.coords_csv,
-            skip_normalize_mod1=skip_normalize_mod1,
-            skip_normalize_mod2=skip_normalize_mod2,
             feature_selection=args.feature_selection,
             atac_preprocess=args.atac_preprocess,
             atac_lsi_components=args.atac_lsi_components,
@@ -564,8 +503,7 @@ def main():
             coords_csv=args.coords_csv,
             mod1_feature_key=args.mod1_feature_key,
             mod2_feature_key=args.mod2_feature_key,
-            skip_normalize_mod1=skip_normalize_mod1,
-            skip_normalize_mod2=skip_normalize_mod2,
+            skip_normalize=bool(args.skip_normalize),
             feature_selection=args.feature_selection,
             atac_preprocess=args.atac_preprocess,
             atac_lsi_components=args.atac_lsi_components,
@@ -603,7 +541,23 @@ def main():
     model.eval()
     with torch.no_grad():
         view_data = [mod1_t, mod2_t]
-        emb = model.encoder(view_data)
+        emb = None
+        attn_weights = None
+        if args.export_with_attention_mask and neighbor_mask is not None and hasattr(model, "_compute_attention_mask"):
+            full_meta = {
+                "coords": coords_t,
+                "mask": neighbor_mask,
+                "token_multiplier": len(view_data),
+                "attn_mask_tokens": view_data[0].shape[0] * len(view_data),
+            }
+            attn_mask = model._compute_attention_mask(view_data, full_meta)
+            enc_out = model.encoder(view_data, attn_mask=attn_mask, return_attention=True)
+            if isinstance(enc_out, tuple):
+                emb, attn_weights = enc_out
+            else:
+                emb = enc_out
+        if emb is None:
+            emb = model.encoder(view_data)
         emb_np = emb.detach().cpu().numpy() if hasattr(emb, "detach") else np.asarray(emb)
 
     latent_df = pd.DataFrame(emb_np, index=mod1_df.index)
@@ -611,19 +565,30 @@ def main():
     latent_df.to_csv(latent_path)
     print(f"Saved MELON latent embedding to {latent_path}")
 
-    if args.save_model_artifacts:
-        save_model_artifacts(
-            output_dir=args.output_dir,
-            model=model,
-            args=args,
-            invocation=invocation,
-            mod1_shape=mod1_df.shape,
-            mod2_shape=mod2_df.shape,
-            coords_shape=coords_df.shape,
-            neighbor_mask_present=neighbor_mask is not None,
-        )
-    else:
-        print("Skipped model_artifacts export (use --save_model_artifacts to enable).")
+    if attn_weights is not None:
+        # Keep parity with old CoMM standalone workflow.
+        attn_arrays = []
+        for w in attn_weights:
+            if w is None:
+                continue
+            if hasattr(w, "detach"):
+                attn_arrays.append(w.detach().cpu().numpy())
+            else:
+                attn_arrays.append(np.asarray(w))
+        if attn_arrays:
+            attn_path = os.path.join(args.output_dir, "melon_attention_weights.npz")
+            np.savez(attn_path, *attn_arrays)
+            print(f"Saved attention weights to {attn_path}")
+
+    save_model_artifacts(
+        output_dir=args.output_dir,
+        model=model,
+        args=args,
+        mod1_shape=mod1_df.shape,
+        mod2_shape=mod2_df.shape,
+        coords_shape=coords_df.shape,
+        neighbor_mask_present=neighbor_mask is not None,
+    )
 
 
 if __name__ == "__main__":

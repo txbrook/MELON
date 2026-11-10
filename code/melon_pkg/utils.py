@@ -6,15 +6,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 # -------------------------
 # Neighborhood utilities
 # -------------------------
-def build_knn_mask(
-    coords_tensor,
-    k=8,
-    include_self=True,
-    *,
-    return_weights=False,
-    symmetric=True,
-    sigma=None,
-):
+def build_knn_mask(coords_tensor, k=8, include_self=True):
     coords_tensor = torch.as_tensor(coords_tensor, dtype=torch.float32)
     if coords_tensor.dim() != 2:
         raise ValueError("`coords_tensor` must have shape (N, D)")
@@ -22,49 +14,20 @@ def build_knn_mask(
     if n == 0:
         raise ValueError("No coordinates provided.")
     device = coords_tensor.device
-    weights = torch.zeros(n, n, dtype=torch.float32, device=device)
     if k <= 0:
         mask = torch.zeros(n, n, dtype=torch.bool, device=device)
         if include_self:
-            eye = torch.eye(n, dtype=torch.bool, device=device)
-            mask |= eye
-            weights = weights.masked_fill(eye, 1.0)
-        return (mask, weights) if return_weights else mask
-
+            mask |= torch.eye(n, dtype=torch.bool, device=device)
+        return mask
     k_eff = min(k + 1, n)
     dists = torch.cdist(coords_tensor, coords_tensor)
-    knn_dists, knn = torch.topk(dists, k=k_eff, largest=False)
-    knn = knn[:, 1:]
-    knn_dists = knn_dists[:, 1:]
-
+    knn = torch.topk(dists, k=k_eff, largest=False).indices[:, 1:]
     mask = torch.zeros(n, n, dtype=torch.bool, device=device)
     row_idx = torch.arange(n, device=device).unsqueeze(1).expand_as(knn)
     mask[row_idx, knn] = True
-
-    positive_dists = knn_dists[knn_dists > 0]
-    if sigma is None:
-        if positive_dists.numel() == 0:
-            sigma_t = torch.tensor(1.0, dtype=torch.float32, device=device)
-        else:
-            sigma_t = positive_dists.median()
-    else:
-        sigma_t = torch.tensor(float(sigma), dtype=torch.float32, device=device)
-    sigma_t = sigma_t.clamp_min(torch.finfo(torch.float32).eps)
-    weights[row_idx, knn] = torch.exp(-(knn_dists ** 2) / (2.0 * sigma_t ** 2))
-
-    if symmetric:
-        mask = mask | mask.T
-        weights = torch.maximum(weights, weights.T)
-
     if include_self:
-        eye = torch.eye(n, dtype=torch.bool, device=device)
-        mask |= eye
-        weights = weights.masked_fill(eye, 1.0)
-
-    if not include_self:
-        weights = weights * mask.to(dtype=torch.float32)
-
-    return (mask, weights) if return_weights else mask
+        mask |= torch.eye(n, dtype=torch.bool, device=device)
+    return mask
 
 # ----------------------------------------------------------------------
 # Missing utils from CoMM package implementations

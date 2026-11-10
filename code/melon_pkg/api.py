@@ -25,9 +25,6 @@ def MELON(
     *,
     use_spatial_attention=True,
     fusion="concat",
-    fusion_heads=8,
-    fusion_layers=1,
-    projection_mlp_dim=256,
     # Augmentations: pass `augmentations=()` (or None) to disable for noise-free evaluation.
     augmentations=("gaussian_noise", "feature_dropout", "neighbor_mix"),
     augment_p=0.8,
@@ -41,11 +38,6 @@ def MELON(
     gat_dropout=0.1,
     spot_tokenization=True,
     shuffle_batches=False,
-    learning_rate=1e-3,
-    weight_decay=1e-5,
-    temperature=0.1,
-    trainer_logger=False,
-    enable_progress_bar=True,
     seed=SEED,
 ):
     """
@@ -85,12 +77,6 @@ def MELON(
         raise ValueError("gat_dropout must be in [0, 1)")
     if EMBED_DIM < 1:
         raise ValueError("embed_dim must be >= 1")
-    if int(fusion_heads) < 1:
-        raise ValueError("fusion_heads must be >= 1")
-    if int(fusion_layers) < 1:
-        raise ValueError("fusion_layers must be >= 1")
-    if int(projection_mlp_dim) < 1:
-        raise ValueError("projection_mlp_dim must be >= 1")
 
     if fusion == "x-attn" and use_spatial_attention:
         print("⚠️  Cross-attention fusion does not support spatial attention mask yet; disabling spatial attention.")
@@ -126,14 +112,7 @@ def MELON(
          raise FileNotFoundError(f"Coords file not found: {coords_path}")
 
     coords_df = pd.read_csv(coords_path, index_col=0)
-
-    # Normalize barcode index dtype to string so numeric barcodes survive CSV round-trips.
-    coords_df.index = coords_df.index.astype(str)
-    mod1_df = mod1_df.copy()
-    mod2_df = mod2_df.copy()
-    mod1_df.index = mod1_df.index.astype(str)
-    mod2_df.index = mod2_df.index.astype(str)
-
+    
     common = coords_df.index.intersection(mod1_df.index).intersection(mod2_df.index)
     if len(common) == 0:
         raise ValueError("No shared barcodes across coords/Mod1/Mod2.")
@@ -153,15 +132,9 @@ def MELON(
     coords_tensor = torch.from_numpy(coords).to(torch.float32)
     # create knn mask using utility (only needed if spatial attention is enabled)
     if use_spatial_attention:
-        neighbor_mask, neighbor_weight = build_knn_mask(
-            coords_tensor,
-            k=NEIGHBOR_K,
-            include_self=True,
-            return_weights=True,
-        )
+        neighbor_mask = build_knn_mask(coords_tensor, k=NEIGHBOR_K, include_self=True)
     else:
         neighbor_mask = None
-        neighbor_weight = None
     
     print("✅ Tensor shapes:")
     print(f"   • Mod1:  {mod1_raw_t.shape}")
@@ -169,8 +142,6 @@ def MELON(
     print(f"   • Coords: {coords_tensor.shape}")
     if neighbor_mask is not None:
         print(f"   • Neighbor mask density: {neighbor_mask.float().mean().item():.4f}")
-        nz_weights = neighbor_weight[neighbor_mask]
-        print(f"   • Mean neighbor weight: {nz_weights.mean().item():.4f}")
     else:
         print("   • Neighbor mask: disabled")
     
@@ -202,7 +173,7 @@ def MELON(
     # ------------- build datamodule -------------
     data_mod = DualAugDataModule(
         mod1_raw=mod1_raw_t, mod2_raw=mod2_raw_t,
-        coords=coords_tensor, neighbor_mask=neighbor_mask, neighbor_weight=neighbor_weight,
+        coords=coords_tensor, neighbor_mask=neighbor_mask,
         batch_size=int(batch_size),
         augmentA=augmentA,
         augmentB=augmentB,
@@ -239,15 +210,11 @@ def MELON(
         embed_dim=EMBED_DIM,
         fusion=fusion,
         pool="mean" if fusion == "x-attn" else "tokens",
-        n_heads=int(fusion_heads),
-        n_layers=int(fusion_layers),
+        n_heads=8,
+        n_layers=1,
     )
     
-    projection = MELONModel._build_mlp(
-        in_dim=EMBED_DIM,
-        mlp_dim=int(projection_mlp_dim),
-        out_dim=EMBED_DIM,
-    )
+    projection = MELONModel._build_mlp(in_dim=EMBED_DIM, mlp_dim=256, out_dim=EMBED_DIM)
     
     neighborhood_cfg = None
     if use_spatial_attention:
@@ -262,8 +229,8 @@ def MELON(
     model = MELONModel(
         encoder=fusion_encoder,
         projection=projection,
-        optim_kwargs={"lr": float(learning_rate), "weight_decay": float(weight_decay)},
-        loss_kwargs={"temperature": float(temperature)},
+        optim_kwargs={"lr":1e-3, "weight_decay":1e-5},
+        loss_kwargs={"temperature":0.1},
         neighborhood_cfg=neighborhood_cfg
     )
     
@@ -271,9 +238,9 @@ def MELON(
         max_epochs=EPOCHS_MELON,
         accelerator="cpu",          # Force CPU for Mac
         devices=1,
-        logger=trainer_logger,
+        logger=False,
         enable_checkpointing=False,
-        enable_progress_bar=bool(enable_progress_bar),
+        enable_progress_bar=True,   # Show progress
         deterministic=True          # Enable deterministic training
     )
     trainer.fit(model, datamodule=data_mod)

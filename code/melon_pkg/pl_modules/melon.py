@@ -7,7 +7,6 @@ from typing import Dict, List, Optional
 from .base import BaseModel
 from ..losses.melon_loss import MELONLoss
 from ..models.mmfusion import MMFusion
-from ..utils import build_knn_mask
 
 
 class NeighborhoodGAT(nn.Module):
@@ -46,8 +45,7 @@ class NeighborhoodGAT(nn.Module):
     def forward(self,
                 node_features: torch.Tensor,
                 coords: Optional[torch.Tensor] = None,
-                neighbor_mask: Optional[torch.Tensor] = None,
-                neighbor_weight: Optional[torch.Tensor] = None) -> torch.Tensor:
+                neighbor_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         if node_features.dim() != 2:
             raise ValueError("`node_features` must be rank-2 (n_nodes, feat_dim).")
 
@@ -57,34 +55,12 @@ class NeighborhoodGAT(nn.Module):
         mask = None
         if neighbor_mask is not None:
             mask = neighbor_mask.to(device=device, dtype=torch.bool)
-        weight = None
-        if neighbor_weight is not None:
-            weight = neighbor_weight.to(device=device, dtype=torch.float32)
         elif coords is not None and self.k_neighbors is not None:
-            mask, weight = build_knn_mask(
-                coords.to(device),
-                k=self.k_neighbors,
-                include_self=self.include_self,
-                return_weights=True,
-            )
-
-        if mask is None and weight is not None:
-            mask = weight > 0
-        if mask is not None and mask.shape != (n_nodes, n_nodes):
-            raise ValueError("neighbor_mask must be (n_nodes, n_nodes)")
-        if weight is not None and weight.shape != (n_nodes, n_nodes):
-            raise ValueError("neighbor_weight must be (n_nodes, n_nodes)")
+            mask = self._knn_mask(coords.to(device), n_nodes)
 
         if mask is not None and self.include_self:
             mask = mask.clone()
             mask |= torch.eye(n_nodes, dtype=torch.bool, device=device)
-        if weight is None and mask is not None:
-            weight = mask.to(dtype=torch.float32)
-        if weight is not None:
-            weight = weight.clamp_min(0.0)
-            if self.include_self:
-                weight = weight.clone()
-                weight.fill_diagonal_(1.0)
 
         projected = self.input_proj(node_features)  # (n_nodes, heads * hidden_dim)
         projected = projected.view(n_nodes, self.heads, self.hidden_dim)
@@ -94,8 +70,6 @@ class NeighborhoodGAT(nn.Module):
         logits = attn_src.unsqueeze(1) + attn_dst.unsqueeze(0)
         logits = self.leaky_relu(logits)
 
-        if weight is not None:
-            logits = logits + weight.clamp_min(1e-6).log().unsqueeze(-1)
         if mask is not None:
             logits = logits.masked_fill(~mask.unsqueeze(-1), float("-inf"))
 
@@ -108,6 +82,19 @@ class NeighborhoodGAT(nn.Module):
 
         weights = weights + 1e-6
         return torch.log(weights)
+
+    def _knn_mask(self, coords: torch.Tensor, n_nodes: int) -> torch.Tensor:
+        if coords.dim() == 1:
+            coords = coords.unsqueeze(-1)
+        coords = coords.to(dtype=torch.float32)
+        dists = torch.cdist(coords, coords)
+        k = min(self.k_neighbors + 1, n_nodes)
+        knn = torch.topk(dists, k=k, largest=False).indices[:, 1:]
+        mask = torch.zeros(n_nodes, n_nodes, dtype=torch.bool, device=coords.device)
+        row_idx = torch.arange(n_nodes, device=coords.device).unsqueeze(1).expand_as(knn)
+        mask[row_idx, knn] = True
+        return mask
+
 
 class MELONModel(BaseModel):
     """ Contrastive MultiModal learning allowing the communication between modalities 
@@ -238,9 +225,6 @@ class MELONModel(BaseModel):
         neighbor_mask = neighbor_meta.get("mask", None)
         if neighbor_mask is None:
             neighbor_mask = neighbor_meta.get("neighbor_mask", None)
-        neighbor_weight = neighbor_meta.get("weight", None)
-        if neighbor_weight is None:
-            neighbor_weight = neighbor_meta.get("neighbor_weight", None)
         token_multiplier = int(neighbor_meta.get("token_multiplier", 1))
 
         if coords is not None and not torch.is_tensor(coords):
@@ -248,23 +232,18 @@ class MELONModel(BaseModel):
 
         if neighbor_mask is not None and not torch.is_tensor(neighbor_mask):
             neighbor_mask = torch.as_tensor(neighbor_mask, device=device, dtype=torch.bool)
-        if neighbor_weight is not None and not torch.is_tensor(neighbor_weight):
-            neighbor_weight = torch.as_tensor(neighbor_weight, device=device, dtype=torch.float32)
 
     # Optionally check consistency here
         if coords is not None and coords.shape[0] != n_spots:
             raise ValueError("coords must have the same number of rows as spots")
         if neighbor_mask is not None and neighbor_mask.shape != (n_spots, n_spots):
             raise ValueError("neighbor_mask must be (n_spots, n_spots)")
-        if neighbor_weight is not None and neighbor_weight.shape != (n_spots, n_spots):
-            raise ValueError("neighbor_weight must be (n_spots, n_spots)")
 
         # This returns (n_spots, n_spots) float bias for MultiheadAttention
         attn_bias = self.neighborhood_attn(
             node_features,
             coords=coords,
-            neighbor_mask=neighbor_mask,
-            neighbor_weight=neighbor_weight,
+            neighbor_mask=neighbor_mask
         )
         if token_multiplier > 1 and attn_bias is not None:
             attn_bias = attn_bias.repeat(token_multiplier, token_multiplier)

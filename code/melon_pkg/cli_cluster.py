@@ -5,6 +5,8 @@ import shlex
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent
+
 import numpy as np
 import pandas as pd
 from sklearn.cluster import SpectralClustering
@@ -14,8 +16,6 @@ from sklearn.neighbors import kneighbors_graph
 
 import igraph as ig
 import networkx as nx
-
-from melon_pkg.spatial_refine import read_coords, spatial_smooth_labels
 
 try:
     import community as community_louvain
@@ -192,13 +192,6 @@ def save_cluster_csv(output_dir: str, method: str, n_clusters: int, index, label
     return path, key
 
 
-def save_smoothed_cluster_csv(output_dir: str, method: str, n_clusters: int, index, labels):
-    key = f"{method}_{n_clusters}_smoothed"
-    path = os.path.join(output_dir, f"clusters_{method}_k{n_clusters}_smoothed.csv")
-    pd.DataFrame({key: labels}, index=index).to_csv(path)
-    return path, key
-
-
 def main():
     parser = argparse.ArgumentParser(description="Cluster MELON embeddings without plotting/ARI.")
     parser.add_argument("--melon_dir", type=str, required=True, help="Directory containing MELON outputs.")
@@ -212,7 +205,6 @@ def main():
     parser.add_argument("--seed", type=int, default=2025)
     parser.add_argument("--n_neighbors", type=int, default=10)
     parser.add_argument("--resolution", type=float, default=1.0)
-    parser.add_argument("--coords_csv", type=str, default=None, help="Optional explicit coords CSV path.")
     parser.add_argument(
         "--methods",
         type=str,
@@ -225,19 +217,6 @@ def main():
         default="leiden",
         help="Method used to write pipeline-compatible clusters_k{target_k}.csv",
     )
-    parser.add_argument(
-        "--spatial_smooth",
-        action="store_true",
-        help="Apply post hoc spatial label smoothing and save separate *_smoothed outputs.",
-    )
-    parser.add_argument("--smooth_k", type=int, default=8, help="Spatial neighbor count for label smoothing.")
-    parser.add_argument(
-        "--smooth_threshold",
-        type=float,
-        default=0.6,
-        help="Minimum weighted neighbor support required to relabel a spot.",
-    )
-    parser.add_argument("--smooth_rounds", type=int, default=1, help="Number of smoothing rounds.")
     args = parser.parse_args()
 
     os.makedirs(args.melon_dir, exist_ok=True)
@@ -246,12 +225,6 @@ def main():
     emb_df = read_embedding(args.melon_dir, args.embedding_csv)
     X = emb_df.values
     index = emb_df.index
-    coords_df = None
-    coords = None
-    if args.spatial_smooth:
-        coords_df = read_coords(args.melon_dir, args.coords_csv)
-        coords_df = coords_df.loc[index]
-        coords = coords_df.values
 
     methods = [m.strip().lower() for m in args.methods.split(",") if m.strip()]
     supported = {"spectral", "gmm", "kmeans", "walktrap", "louvain", "leiden"}
@@ -286,22 +259,6 @@ def main():
             results[m] = y
             out_path, key = save_cluster_csv(args.melon_dir, m, args.target_k, index, y)
             print(f"Saved {m} clusters ({len(np.unique(y))} unique) to {out_path} [{key}]")
-            if args.spatial_smooth:
-                y_smoothed, changes_per_round = spatial_smooth_labels(
-                    y,
-                    coords,
-                    k=args.smooth_k,
-                    threshold=args.smooth_threshold,
-                    rounds=args.smooth_rounds,
-                )
-                results[f"{m}_smoothed"] = np.asarray(y_smoothed, dtype=int)
-                smooth_path, smooth_key = save_smoothed_cluster_csv(
-                    args.melon_dir, m, args.target_k, index, y_smoothed
-                )
-                print(
-                    f"Saved {m} smoothed clusters ({len(np.unique(y_smoothed))} unique) "
-                    f"to {smooth_path} [{smooth_key}] changes_per_round={changes_per_round}"
-                )
         except Exception as exc:
             print(f"Skipping {m}: {exc}")
 
@@ -320,15 +277,6 @@ def main():
     pipeline_out = os.path.join(args.melon_dir, f"clusters_k{args.target_k}.csv")
     pd.DataFrame({final_key: final_labels}, index=index).to_csv(pipeline_out)
     print(f"Saved primary clusters to {pipeline_out} using method='{primary}'")
-
-    if args.spatial_smooth:
-        smooth_primary = f"{primary}_smoothed"
-        if smooth_primary in results:
-            smooth_labels = results[smooth_primary]
-            smooth_key = f"{primary}_{args.target_k}_smoothed"
-            smooth_out = os.path.join(args.melon_dir, f"clusters_k{args.target_k}_smoothed.csv")
-            pd.DataFrame({smooth_key: smooth_labels}, index=index).to_csv(smooth_out)
-            print(f"Saved primary smoothed clusters to {smooth_out} using method='{primary}'")
 
 
 if __name__ == "__main__":

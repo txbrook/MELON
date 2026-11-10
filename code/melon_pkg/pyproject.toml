@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "melon-pkg"
+version = "0.1.0"
+description = "MELON: metric learning for multi-omic spatial representation learning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "MELON contributors" }
+]
+dependencies = [
+  "einops>=0.6",
+  "h5py>=3.8",
+  "igraph>=1.0",
+  "leidenalg>=0.11",
+  "networkx>=3.0",
+  "numpy>=1.23",
+  "pandas>=1.5",
+  "python-louvain>=0.16",
+  "pytorch-lightning>=2.0",
+  "scikit-learn>=1.2",
+  "scipy>=1.10",
+  "torch>=2.1",
+]
+
+[project.optional-dependencies]
+h5ad = [
+  "anndata>=0.10",
+  "scanpy>=1.10",
+]
+dev = [
+  "build>=1.2",
+  "pytest>=8.0",
+  "ruff>=0.4",
+  "twine>=5.0",
+]
+
+[project.scripts]
+melon-run = "melon_pkg.cli_run:main"
+melon-cluster = "melon_pkg.cli_cluster:main"
+
+[tool.setuptools]
+include-package-data = false
+packages = [
+  "melon_pkg",
+  "melon_pkg.losses",
+  "melon_pkg.models",
+  "melon_pkg.pl_modules",
+]
+
+[tool.setuptools.package-dir]
+melon_pkg = "."
+"melon_pkg.losses" = "losses"
+"melon_pkg.models" = "models"
+"melon_pkg.pl_modules" = "pl_modules"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore:Failed to load image Python extension:UserWarning",
+  "ignore:GPU available but not used:UserWarning",
+  "ignore:You defined a `validation_step` but have no `val_dataloader`:UserWarning",
+  "ignore:The total number of parameters detected may be inaccurate because the model contains an instance of `UninitializedParameter`:UserWarning",
+  "ignore:The 'train_dataloader' does not have many workers:UserWarning",
+]
