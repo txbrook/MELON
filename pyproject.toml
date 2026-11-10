@@ -53,14 +53,14 @@ packages = [
 ]
 
 [tool.setuptools.package-dir]
-melon_pkg = "."
-"melon_pkg.losses" = "losses"
-"melon_pkg.models" = "models"
-"melon_pkg.pl_modules" = "pl_modules"
+melon_pkg = "MELON"
+"melon_pkg.losses" = "MELON/losses"
+"melon_pkg.models" = "MELON/models"
+"melon_pkg.pl_modules" = "MELON/pl_modules"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["tests"]
+testpaths = ["MELON/tests"]
 filterwarnings = [
   "ignore:Failed to load image Python extension:UserWarning",
   "ignore:GPU available but not used:UserWarning",

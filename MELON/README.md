@@ -7,13 +7,13 @@ The supplementary MELON package learns a joint embedding from paired spatial mol
 From the MELON repository root, in an activated Python environment, run
 
 ```bash
-python -m pip install -e ./code/melon_pkg
+python -m pip install -e .
 ```
 
 Optional `.h5ad` input support can be installed with
 
 ```bash
-python -m pip install -e './code/melon_pkg[h5ad]'
+python -m pip install -e '.[h5ad]'
 ```
 
 ## Verify
@@ -40,17 +40,17 @@ model, mod1_t, mod2_t, coords_t, neighbor_mask = MELON(
 )
 ```
 
-For the mouse E15.5 example, follow the [repository README](../../README.md). Data preparation and the analysis workflow are described in the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/).
+For the clustering analyses, follow the [reproduction instructions](../Reproduce/clustering/README.md). Data preparation and the analysis workflow are described in the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/).
 
 ## Tests
 
 From the repository root, install the development dependencies and run the bundled tests.
 
 ```bash
-python -m pip install -e './code/melon_pkg[dev]'
-python -m pytest code/melon_pkg/tests
+python -m pip install -e '.[dev]'
+python -m pytest MELON/tests
 ```
 
 ## License
 
-The package is distributed under the [MIT License](LICENSE).
+The package is distributed under the [MIT License](../LICENSE).

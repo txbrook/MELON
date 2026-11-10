@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Reproduces the Mouse E15.5 spatial multi-omics analysis reported in the MELON
-# manuscript. Self-contained: run from inside the supplementary bundle.
+# manuscript. Install MELON from the repository root before running.
 #
 # Usage:
 #     bash run_mouse_e15.sh /path/to/Mouse_E15.5
@@ -8,7 +8,7 @@
 # The data directory must contain:
 #     mRNA_data.h5, ATAC_data.h5, coords.csv
 #
-# Outputs are written to ./results/example_mouse_e15/.
+# Outputs are written to ./results/mouse_e15/.
 
 set -euo pipefail
 
@@ -23,7 +23,7 @@ fi
 DATA_DIR="$(cd "$DATA_DIR" && pwd)"
 cd "$HERE"
 
-OUT_DIR="results/example_mouse_e15"
+OUT_DIR="results/mouse_e15"
 SEED=42
 EPOCHS=100
 TARGET_K=12

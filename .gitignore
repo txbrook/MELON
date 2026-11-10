@@ -9,5 +9,5 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
-code/results/
+Reproduce/**/results/
 lightning_logs/
