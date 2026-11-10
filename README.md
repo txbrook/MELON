@@ -35,4 +35,4 @@ For `.h5ad` inputs, install the optional dependencies with `python -m pip instal
 
 ## Citation
 
-Zhang, Yuchen, Lisa Huang, Jian Gao, Yuying Xie, Yu Shen, Liuqing Yang, Chunru Lin, and Lulu Shang. “MELON: A Cross Modality Information Aware and Spatial Aware Multimodal Learning Framework for spatial multi-omics data integration.” Manuscript (2026).
+Yuchen Zhang, Lisa Huang, Jian Gao, Yuying Xie, Yu Shen, Liuqing Yang, Chunru Lin, and Lulu Shang. “MELON: A Cross Modality Information Aware and Spatial Aware Multimodal Learning Framework for spatial multi-omics data integration.” Manuscript (2026).
