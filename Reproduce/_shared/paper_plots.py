@@ -66,7 +66,10 @@ def spatial_panels(frame, columns, *, colors=None, ncols=4, point_size=4, x="x",
         if shade.isna().any():
             raise ValueError(f"Incomplete saved color mapping for {column}")
         ax.scatter(frame[x], frame[y], c=shade, s=point_size, linewidths=0, rasterized=True)
-        ax.set_title(f"{column} ({values.nunique()} groups)", fontsize=11)
+        name = {"MELON_14_15": "MELON", "melon_domain": "MELON", "Full": "MELON full",
+                "- image": "MELON without image", "- protein": "MELON without protein",
+                "- RNA": "MELON without RNA"}.get(column, column)
+        ax.set_title(f"{name} ({values.nunique()} groups)", fontsize=11)
         ax.set_aspect("equal")
         if invert_y:
             ax.invert_yaxis()
@@ -113,7 +116,7 @@ def sensitivity_panels(neighbors, augmentation):
 def ablation_panels(frame):
     # Summaries of saved scores only. This does not rerun the cluster-number sweep.
     methods = ["full", "no_aug", "no_spatial"]
-    names = ["MELON full", "- augmentation", "- spatial bias"]
+    names = ["MELON full", "MELON without augmentation", "MELON without spatial bias"]
     fig, ax = plt.subplots(figsize=(8.5, 3.6), layout="constrained")
     centers = np.arange(len(methods))
     for i, (metric, (label, color)) in enumerate(METRICS.items()):
@@ -130,34 +133,21 @@ def ablation_panels(frame):
     return fig
 
 
-def simulation_scores(melon, baselines):
-    frames = []
-    for frame, own in [(melon, True), (baselines, False)]:
-        frame = frame.loc[((frame.target == "Y") & (frame.probe == "mlp")) |
-                          ((frame.target != "Y") & (frame.probe == "linear_svm"))].copy()
-        if own:
-            frame["method"] = "MELON"
-        frames.append(frame)
-    scores = pd.concat(frames, ignore_index=True)
-    names = {"mefisto": "MEFISTO", "miso": "MISO", "mofaplus": "MOFA+", "seurat": "Seurat WNN",
-             "spatialglue": "SpatialGlue", "totalvi": "MultiVI", "multivi": "MultiVI"}
-    scores["method"] = scores.method.replace(names)
+def simulation_scores(melon):
+    scores = melon.loc[((melon.target == "Y") & (melon.probe == "mlp")) |
+                       ((melon.target != "Y") & (melon.probe == "linear_svm"))].copy()
+    scores["method"] = "MELON"
     return scores[["target", "method", "probe", "balanced_accuracy_mean", "balanced_accuracy_std"]]
 
 
 def simulation_score_panels(scores):
-    fig, axes = plt.subplots(1, 4, figsize=(13, 4.2), layout="constrained")
-    for ax, target in zip(axes, ["R", "U", "C", "Y"]):
-        part = scores.loc[scores.target == target].sort_values("balanced_accuracy_mean", ascending=False)
-        if part.empty or part.method.duplicated().any():
-            raise ValueError(f"Missing or ambiguous saved scores for {target}")
-        colors = ["#ee765e" if method == "MELON" else "#a9cbca" for method in part.method]
-        ax.bar(np.arange(len(part)), part.balanced_accuracy_mean, yerr=part.balanced_accuracy_std,
-               color=colors, capsize=2)
-        ax.set(title=f"Target {target}", xticks=np.arange(len(part)), xticklabels=part.method,
-               ylim=(0, 1.08), ylabel="Balanced accuracy (mean ± s.d.)")
-        ax.tick_params(axis="x", rotation=60, labelsize=8)
-        for label in ax.get_xticklabels():
-            label.set_ha("right")
-        ax.spines[["top", "right"]].set_visible(False)
+    if not scores.method.eq("MELON").all() or scores.target.duplicated().any():
+        raise ValueError("Expected one saved MELON score per target")
+    part = scores.set_index("target").loc[["R", "U", "C", "Y"]]
+    fig, ax = plt.subplots(figsize=(6.4, 4.2), layout="constrained")
+    ax.bar(np.arange(4), part.balanced_accuracy_mean, yerr=part.balanced_accuracy_std,
+           color="#ee765e", capsize=3, width=.6)
+    ax.set(title="MELON target prediction", xticks=np.arange(4), xticklabels=part.index,
+           xlabel="Target", ylim=(0, 1.08), ylabel="Balanced accuracy (mean ± s.d.)")
+    ax.spines[["top", "right"]].set_visible(False)
     return fig

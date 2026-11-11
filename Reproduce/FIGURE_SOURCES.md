@@ -1,12 +1,11 @@
 # Figure sources
 
-Paths below are relative to the sharedoc archive `Published_Data_non_NASH/`. The notebooks display stored results; source arrays and cluster IDs are unchanged. The manuscript previews in `figures/paper_figure_*.png` were rendered from the supplied figure PDFs dated 2026-11-03.
+Paths below are relative to the sharedoc archive `Published_Data_non_NASH/`. The notebooks display MELON results from the archived arrays and labels. Source arrays and cluster IDs are unchanged.
 
 | Figure | Archive folder | Files used by the notebook |
 | --- | --- | --- |
 | 2a | `01_Mouse_E15_5` | `03_embeddings/MELON.csv`; `04_clusters/final_clusters.csv` |
 | 3a | `04_Human_tonsil` | `03_embeddings/MELON.csv`; `04_clusters/final_clusters.csv`; `display_color_mappings.json` |
-| 3e | `05_Mouse_brain_five_modalities` | `04_clusters/single_modality_clusters.csv`; `single_modality_palette.csv` |
 | 3f | `05_Mouse_brain_five_modalities` | `03_embeddings/aligned_embeddings.npz`; `04_clusters/final_clusters.csv`; `cluster_palette.csv` |
 | 3g | `05_Mouse_brain_five_modalities` | `04_clusters/UMAP_coordinates.csv`; `cluster_palette.csv` |
 | 4a | `02_Human_lymph_node` | `03_embeddings/MELON.csv`; `04_clusters/final_clusters.csv` |
@@ -15,11 +14,11 @@ Paths below are relative to the sharedoc archive `Published_Data_non_NASH/`. The
 | 5a-b | `01_Mouse_E15_5` | `05_Fig5_robustness/neighbor_k_local_report_metrics.csv`; `augment_p_report_metrics.csv` |
 | Related ablation sweep (5c requires reconciliation) | `01_Mouse_E15_5` | `05_Fig5_robustness/ablation_multik_metrics_E15.csv` |
 | Supplementary 7e / 8e | `02_Human_lymph_node` / `03_Mouse_E13` | `03_embeddings/supplementary_tsne/saved_tsne.csv`; `source_embedding.csv` |
-| Supplementary 10 | `06_Controlled_simulation` | `01_source_data/seed*/meta.csv`; `02_model_inputs/seed*/X_*.npy`; `03_embeddings/seed*/MELON.csv`; `04_saved_evaluation/*.csv` |
+| Supplementary 10 | `06_Controlled_simulation` | `02_model_inputs/seed*/X_*.npy`; `03_embeddings/seed*/MELON.csv`; `04_saved_evaluation/MELON_summary.csv` and MELON ablation summaries |
 
 ## Panels with additional source tables
 
-The archive does not contain every final plotting table. The original manuscript previews show the complete figures; the notebooks identify the following separate inputs rather than deriving replacement results:
+Additional MELON panels require the following saved plotting tables outside this archive:
 
 - Fig. 2b-c and Fig. 4b/e: final multi-resolution benchmark and region-level summaries.
 - Fig. 2d-f: final expression, enrichment, t-SNE and interaction display tables.
@@ -36,4 +35,4 @@ The archived full-model median ARI across the six saved cluster counts is 0.383;
 
 E15.5 records seed 42, 100 epochs, batch size 2048 and spatial k = 16. Tonsil records seed 42, 30 epochs, batch size 4096 and k = 6. The E13 main run records seed 2021, shuffled batches and a 24,017-feature second modality. These settings describe the stored results; the generic manuscript-default training scripts are a separate workflow.
 
-The five-modality archive distinguishes the native 128-dimensional MELON embedding, the saved PCA20/L2 clustering representation, and UMAP display coordinates. Seurat WNN UMAP2 is used only for display. The simulation comparison selects the saved Seurat WNN probe rows; the UMAP-only probe rows remain a separate evaluation.
+The five-modality archive distinguishes the native 128-dimensional MELON embedding, the saved PCA20/L2 clustering representation, and UMAP display coordinates. The simulation notebook selects the saved MELON MLP probe for Y and linear-SVM probes for R/U/C.

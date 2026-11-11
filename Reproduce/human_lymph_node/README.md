@@ -2,9 +2,9 @@
 
 ## Paper figures
 
-Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved results into Fig. 4a-c. The notebook places the explanation, reading code and figure output together.
+Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved results into Fig. 4a-c. The notebook interleaves explanations, reading code and MELON result plots.
 
-![Saved spatial partitions](../figures/human_lymph_node_saved.png)
+![Saved MELON spatial partition](../figures/human_lymph_node_saved.png)
 
 ## Run from preprocessed data
 
