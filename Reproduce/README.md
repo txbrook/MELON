@@ -1,50 +1,50 @@
 # Reproduce
 
-Follow the saved MELON results through short explanations, reading code and displayed plots. The notebooks use existing embeddings, partitions and evaluation tables.
+Follow each analysis from multimodal inputs through MELON configuration, representation learning, spatial clustering or target prediction, and visualization. The notebooks include the code for each computational stage and continue from the supplied intermediate files, without repeating model fitting.
 
 **Data:** `Published_Data_non_NASH` will be available through sharedoc; the link will be added after upload. Place the extracted folder beside `Reproduce/`, or set `MELON_PUBLISHED_DATA` to its location. Notebook outputs are included for reading on GitHub.
 
 ## Mouse E15.5 brain
 
-[Open the notebook](mouse_e15_brain/paper_figures.ipynb). Reads the saved MELON embedding and places its 12-domain partition on the tissue.
+[Open the notebook](mouse_e15_brain/analysis.ipynb). Integrates RNA and ATAC, identifies 12 spatial domains, and maps them onto the tissue.
 
-![Mouse E15.5 brain: saved MELON results](figures/mouse_e15_brain_saved.png)
+![Mouse E15.5 brain: MELON results](figures/mouse_e15_brain_saved.png)
 
 ## Human tonsil
 
-[Open the notebook](human_tonsil/paper_figures.ipynb). Shows the saved MELON spatial partition.
+[Open the notebook](human_tonsil/analysis.ipynb). Follows multimodal integration, domain identification and spatial visualization.
 
-![Human tonsil: saved MELON results](figures/human_tonsil_saved.png)
+![Human tonsil: MELON results](figures/human_tonsil_saved.png)
 
 ## Five-modality mouse brain
 
-[Open the notebook](mouse_brain/paper_figures.ipynb). Follows the saved MELON inputs and embedding to its 17-domain partition and UMAP.
+[Open the notebook](mouse_brain/analysis.ipynb). Integrates five modalities, constructs a joint representation, identifies spatial domains and visualizes them with UMAP.
 
-![Five-modality mouse brain: saved MELON results](figures/mouse_brain_saved.png)
+![Five-modality mouse brain: MELON results](figures/mouse_brain_saved.png)
 
 ## Human lymph node
 
-[Open the notebook](human_lymph_node/paper_figures.ipynb). Shows the saved MELON spatial partition.
+[Open the notebook](human_lymph_node/analysis.ipynb). Follows multimodal integration, domain identification and spatial visualization.
 
-![Human lymph node: saved MELON results](figures/human_lymph_node_saved.png)
+![Human lymph node: MELON results](figures/human_lymph_node_saved.png)
 
 ## Mouse E13 embryo
 
-[Open the notebook](mouse_e13_embryo/paper_figures.ipynb). Shows the saved MELON spatial partition and t-SNE, with the separate MELON cis-pair input branch.
+[Open the notebook](mouse_e13_embryo/analysis.ipynb). Follows RNA–ATAC integration, spatial domains, t-SNE and the separate cis-regulatory input branch.
 
-![Mouse E13 embryo: saved MELON results](figures/mouse_e13_embryo_saved.png)
+![Mouse E13 embryo: MELON results](figures/mouse_e13_embryo_saved.png)
 
 ## MELON robustness
 
-[Open the notebook](robustness/paper_figures.ipynb). Reads the saved MELON neighborhood and augmentation sensitivity scores.
+[Open the notebook](robustness/analysis.ipynb). Follows parameter selection, MELON integration, domain identification and sensitivity evaluation.
 
-![MELON robustness: saved MELON results](figures/robustness_saved.png)
+![MELON robustness: MELON results](figures/robustness_saved.png)
 
 ## MELON controlled simulation
 
-[Open the notebook](controlled_simulation/paper_figures.ipynb). Displays the stored MELON target-prediction scores.
+[Open the notebook](controlled_simulation/analysis.ipynb). Follows paired inputs, MELON representation learning, target prediction and evaluation.
 
-![MELON controlled simulation: saved MELON results](figures/controlled_simulation_saved.png)
+![MELON controlled simulation: MELON results](figures/controlled_simulation_saved.png)
 
 ## Training and clustering
 

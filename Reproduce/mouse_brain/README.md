@@ -1,10 +1,10 @@
 # Five-modality mouse brain
 
-## Results
+## Analysis workflow
 
-Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON results through explanations, code and plots.
+Follow the [analysis notebook](analysis.ipynb) through multimodal inputs, MELON configuration and training, domain identification, and spatial visualization. Each stage connects its computational code to the supplied intermediate files.
 
-![Saved MELON spatial partition](../figures/mouse_brain_saved.png)
+![MELON spatial partition](../figures/mouse_brain_saved.png)
 
 ## Run from preprocessed data
 
