@@ -2,7 +2,7 @@
 
 ## Analysis workflow
 
-Follow the [analysis notebook](analysis.ipynb) through multimodal inputs, MELON configuration and training, domain identification, and spatial visualization. Each stage connects its computational code to the supplied intermediate files.
+[Open the notebook](analysis.ipynb). Edit parameters directly in its configuration cell.
 
 ![MELON spatial partition](../figures/mouse_e15_brain_saved.png)
 

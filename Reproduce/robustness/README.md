@@ -2,7 +2,7 @@
 
 ## Analysis workflow
 
-Follow the [analysis notebook](analysis.ipynb) through parameter selection, MELON integration, spatial clustering, and sensitivity evaluation. Each stage connects its computational code to the supplied intermediate files.
+[Open the notebook](analysis.ipynb). Edit parameters directly in its configuration cell.
 
 ![MELON sensitivity results](../figures/robustness_saved.png)
 

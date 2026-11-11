@@ -2,7 +2,7 @@
 
 ## Analysis workflow
 
-Follow the [analysis notebook](analysis.ipynb) through paired inputs, MELON representation learning, target prediction, and evaluation. Each stage connects its computational code to the supplied intermediate files.
+[Open the notebook](analysis.ipynb). Edit parameters directly in its configuration cell.
 
 ![MELON prediction scores](../figures/controlled_simulation_saved.png)
 
