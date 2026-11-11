@@ -8,7 +8,7 @@ The five-modality mouse brain workflow follows the saved paper-run metadata: 10 
 
 Tonsil uses native embeddings and k-means (k = 10, n_init = 20), with the original global embedding export. Lymph node and E13 use the repository's 10-neighbor Leiden runner at resolution 1, including its existing target-count handling: merge smallest communities when above target, or spectral clustering when below target. Their sweeps are 6/8/10/12/14 and 10/12/14/16/18, respectively.
 
-The shared multimodal components are copied from the original five-modality analysis source; [source_manifest.json](_shared/publication_model/source_manifest.json) records their SHA-256 hashes. The runners apply the manuscript's Adam optimizer and shared-permutation augmentation for the three default workflows, and preserve the recorded five-modality settings separately. These workflows implement the documented settings; they do not include the large input datasets or claim bit-for-bit regeneration of every published result.
+The notebooks and runners use the installed `melon_pkg` package.
 
 The controlled-simulation notebook uses the full-model configuration from `run_v4_2_pairscale30_a1scale_probe.py`: 20 epochs, 256 embedding dimensions, spatial k = 4, augmentation probability 0.3, batch size 2,048, and learning rate 0.002. Its MLP and linear-SVM evaluation follows `phase2_eval.py`, with five stratified folds and fold-specific standardization. The notebook connects these computational stages to the supplied simulation nodes.
 

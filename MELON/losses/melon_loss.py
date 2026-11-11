@@ -75,3 +75,17 @@ class MELONLoss(nn.Module):
 
     def __str__(self):
         return "{}(temp={})".format(type(self).__name__, self.temperature)
+
+
+class SymmetricMELONLoss(MELONLoss):
+    def infonce(self, z1, z2):
+        n = len(z1)
+        target = torch.arange(n, device=z1.device)
+        eye = torch.eye(n, dtype=torch.bool, device=z1.device)
+        cross = z1 @ z2.T / self.temperature
+        same1 = (z1 @ z1.T / self.temperature).masked_fill(eye, -self.INF)
+        same2 = (z2 @ z2.T / self.temperature).masked_fill(eye, -self.INF)
+        loss = .5 * (func.cross_entropy(torch.cat([cross, same1], 1), target)
+                     + func.cross_entropy(torch.cat([cross.T, same2], 1), target))
+        accuracy = (cross.argmax(1) == target).float().mean() * 100
+        return loss, accuracy

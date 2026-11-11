@@ -4,10 +4,11 @@ import numpy as np
 import pytest
 import torch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from _shared.io import load_features, unique_index
-from _shared.engine import make_model, export_embedding, PaperAugmentations
-from _shared.publication_model.utils import build_knn_mask
+from melon_pkg.preprocessing import load_features, unique_index
+from melon_pkg.model import make_model
+from melon_pkg.embedding import export_embedding
+from melon_pkg.data import SpatialOmicsAugmentations
+from melon_pkg.utils import build_knn_mask
 
 
 def test_preprocessed_features_are_preserved(tmp_path):
@@ -44,7 +45,7 @@ def test_chunked_export_equals_full_attention(modalities):
     model = make_model([4] * modalities, config).eval()
     tensors = [torch.randn(9, 4) for _ in range(modalities)]
     coords = torch.randn(9, 2)
-    mask, weight = build_knn_mask(coords, k=3, return_weights=True)
+    mask, weight = build_knn_mask(coords, k=3, return_weights=True, symmetric=True)
     with torch.inference_mode():
         bias = model.neighborhood_attn(torch.cat(tensors, 1), coords, mask, weight)
         expected = model.encoder(tensors, attn_mask=bias.repeat(modalities, modalities)).numpy()
@@ -58,7 +59,7 @@ def test_chunked_export_equals_full_attention(modalities):
 
 def test_paper_mix_keeps_modalities_synchronized():
     x = np.arange(30, dtype=np.float32).reshape(10, 3)
-    a, b = PaperAugmentations.neighbor_mix([x, 2 * x + 7])
+    a, b = SpatialOmicsAugmentations.neighbor_mix([x, 2 * x + 7])
     np.testing.assert_allclose(b, 2 * a + 7, atol=1e-5)
     assert not np.array_equal(a, x)
 

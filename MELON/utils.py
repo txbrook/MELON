@@ -6,28 +6,37 @@ from torch.optim.lr_scheduler import _LRScheduler
 # -------------------------
 # Neighborhood utilities
 # -------------------------
-def build_knn_mask(coords_tensor, k=8, include_self=True):
+def build_knn_mask(coords_tensor, k=8, include_self=True, *, return_weights=False,
+                   symmetric=False, sigma=None):
     coords_tensor = torch.as_tensor(coords_tensor, dtype=torch.float32)
     if coords_tensor.dim() != 2:
         raise ValueError("`coords_tensor` must have shape (N, D)")
-    n = coords_tensor.size(0)
+    n = coords_tensor.shape[0]
     if n == 0:
         raise ValueError("No coordinates provided.")
     device = coords_tensor.device
-    if k <= 0:
-        mask = torch.zeros(n, n, dtype=torch.bool, device=device)
-        if include_self:
-            mask |= torch.eye(n, dtype=torch.bool, device=device)
-        return mask
-    k_eff = min(k + 1, n)
-    dists = torch.cdist(coords_tensor, coords_tensor)
-    knn = torch.topk(dists, k=k_eff, largest=False).indices[:, 1:]
     mask = torch.zeros(n, n, dtype=torch.bool, device=device)
-    row_idx = torch.arange(n, device=device).unsqueeze(1).expand_as(knn)
-    mask[row_idx, knn] = True
+    weights = torch.zeros(n, n, dtype=torch.float32, device=device) if return_weights else None
+    if k > 0:
+        distances = torch.cdist(coords_tensor, coords_tensor)
+        knn_distances, knn = torch.topk(distances, k=min(k + 1, n), largest=False)
+        knn, knn_distances = knn[:, 1:], knn_distances[:, 1:]
+        rows = torch.arange(n, device=device).unsqueeze(1).expand_as(knn)
+        mask[rows, knn] = True
+        if return_weights:
+            positive = knn_distances[knn_distances > 0]
+            scale = (positive.median() if positive.numel() else coords_tensor.new_tensor(1.0)) if sigma is None else coords_tensor.new_tensor(float(sigma))
+            scale = scale.clamp_min(torch.finfo(torch.float32).eps)
+            weights[rows, knn] = torch.exp(-(knn_distances ** 2) / (2.0 * scale ** 2))
+        if symmetric:
+            mask = mask | mask.T
+            if return_weights:
+                weights = torch.maximum(weights, weights.T)
     if include_self:
-        mask |= torch.eye(n, dtype=torch.bool, device=device)
-    return mask
+        mask.fill_diagonal_(True)
+        if return_weights:
+            weights.fill_diagonal_(1.0)
+    return (mask, weights) if return_weights else mask
 
 # ----------------------------------------------------------------------
 # Missing utils from CoMM package implementations

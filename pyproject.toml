@@ -28,6 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+tutorials = [
+  "matplotlib>=3.6",
+  "nbformat>=5",
+  "ipython>=8",
+  "scanpy>=1.10",
+]
 h5ad = [
   "anndata>=0.10",
   "scanpy>=1.10",

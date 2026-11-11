@@ -23,7 +23,8 @@ class SpatialOmicsAugmentations(torch.nn.Module):
     def __init__(self,
                  augmentations: Union[str, List[str]] = None,
                  p: float = 0.5,
-                 random_choice: bool = False):
+                 random_choice: bool = False,
+                 spatial_mix: bool = False):
         super().__init__()
         if augmentations is None:
             augmentations = []
@@ -34,6 +35,7 @@ class SpatialOmicsAugmentations(torch.nn.Module):
         self.augmentations = augmentations
         self.p = p
         self.random_choice = random_choice
+        self.spatial_mix = bool(spatial_mix)
 
         # mapping from string name -> function
         self.registry = {
@@ -45,7 +47,7 @@ class SpatialOmicsAugmentations(torch.nn.Module):
             "simclr": self.simclr_like,
         }
 
-    def forward(self, x: List[np.ndarray]):
+    def forward(self, x: List[np.ndarray], *, neighbor_mask=None):
         """
         x: list of modalities [X_mod1, X_mod2], shape (N, G) and (N, P)
         """
@@ -53,14 +55,19 @@ class SpatialOmicsAugmentations(torch.nn.Module):
             aug_name = np.random.choice(self.augmentations)
             fn = self.registry.get(aug_name, None)
             if fn is not None:
-                return fn(deepcopy(x))
+                return self._augment(aug_name, fn, deepcopy(x), neighbor_mask)
         else:
             for aug_name in self.augmentations:
                 if np.random.rand() < self.p:
                     fn = self.registry.get(aug_name, None)
                     if fn is not None:
-                        x = fn(x)
+                        x = self._augment(aug_name, fn, x, neighbor_mask)
         return x
+
+    def _augment(self, name, fn, x, neighbor_mask):
+        if name == "neighbor_mix" and self.spatial_mix:
+            return self.spatial_neighbor_mix(x, neighbor_mask=neighbor_mask)
+        return fn(x)
 
     # --------------------------------------------------
     # Augmentation functions
@@ -115,106 +122,120 @@ class SpatialOmicsAugmentations(torch.nn.Module):
         return [lam * x_ + (1 - lam) * x_[idx] for x_ in x]
 
     @staticmethod
+    def spatial_neighbor_mix(x, neighbor_mask=None, alpha=0.3):
+        """Mix each spot with a true spatial neighbor from the current batch."""
+        n = x[0].shape[0]
+        if n == 0:
+            return x
+
+        pair_idx = np.arange(n)
+        if neighbor_mask is not None:
+            if torch.is_tensor(neighbor_mask):
+                mask_np = neighbor_mask.detach().cpu().numpy().astype(bool, copy=False)
+            else:
+                mask_np = np.asarray(neighbor_mask, dtype=bool)
+            if mask_np.shape != (n, n):
+                raise ValueError("neighbor_mask must be (batch_size, batch_size) for neighbor_mix.")
+
+            mask_np = mask_np.copy()
+            np.fill_diagonal(mask_np, False)
+            for i in range(n):
+                candidates = np.flatnonzero(mask_np[i])
+                pair_idx[i] = np.random.choice(candidates) if candidates.size > 0 else i
+
+        lam = np.random.beta(alpha, alpha, size=(n, 1)).astype(np.float32)
+        mixed = []
+        for x_ in x:
+            arr = np.asarray(x_, dtype=np.float32)
+            mixed_arr = lam * arr + (1.0 - lam) * arr[pair_idx]
+            mixed.append(mixed_arr.astype(arr.dtype, copy=False))
+        return mixed
+
+    @staticmethod
     def simclr_like(x):
         """SimCLR-style composite augmentation: noise + feature dropout."""
         x = SpatialOmicsAugmentations.gaussian_noise(x, std=0.05)
         x = SpatialOmicsAugmentations.feature_dropout(x, frac=0.1)
         return x
 
-def collate_with_dual_augment(batch, augmentA=None, augmentB=None, device=None):
-    """
-    batch: list of ([mod1, mod2], idx) where tensors are 1D per modality.
-    Returns:
-      ((mod1A, mod2A), (mod1B, mod2B), batch_indices) with shapes (B, F) and (B,)
-      The two views are generated via augmentations from the same base sample.
-    """
-    mod1 = torch.stack([item[0][0] for item in batch], dim=0)
-    mod2 = torch.stack([item[0][1] for item in batch], dim=0)
-    batch_indices = torch.tensor([item[1] for item in batch], dtype=torch.long)
+def collate_with_dual_augment(batch, augmentA=None, augmentB=None, device=None, neighbor_mask=None):
+    """Create two augmented views of all modalities; preserve the three-value return API."""
+    n_mod = len(batch[0][0])
+    mods = [torch.stack([item[0][m] for item in batch], dim=0) for m in range(n_mod)]
+    indices = torch.tensor([item[1] for item in batch], dtype=torch.long)
+    mask = None if neighbor_mask is None else neighbor_mask[indices][:, indices]
 
-    mod1A, mod2A = mod1.clone(), mod2.clone()
-    mod1B, mod2B = mod1.clone(), mod2.clone()
+    def augment(module):
+        views = [x.clone() for x in mods]
+        if module is not None:
+            arrays = [x.detach().cpu().numpy() for x in views]
+            if isinstance(module, SpatialOmicsAugmentations):
+                arrays = module(arrays, neighbor_mask=mask)
+            else:
+                arrays = module(arrays)
+            if len(arrays) != n_mod:
+                raise ValueError("Augmentation must retain every modality")
+            views = [torch.from_numpy(x).type_as(reference) for x, reference in zip(arrays, views)]
+        if device is not None:
+            views = [x.to(device) for x in views]
+        return tuple(views)
 
-    # --- Augment View A ---
-    if augmentA is not None:
-        mod1_np, mod2_np = mod1A.detach().cpu().numpy(), mod2A.detach().cpu().numpy()
-        mod1_np, mod2_np = augmentA([mod1_np, mod2_np])
-        mod1A = torch.from_numpy(mod1_np).type_as(mod1A)
-        mod2A = torch.from_numpy(mod2_np).type_as(mod2A)
+    return augment(augmentA), augment(augmentB), indices
 
-    # --- Augment View B ---
-    if augmentB is not None:
-        mod1_np, mod2_np = mod1B.detach().cpu().numpy(), mod2B.detach().cpu().numpy()
-        mod1_np, mod2_np = augmentB([mod1_np, mod2_np])
-        mod1B = torch.from_numpy(mod1_np).type_as(mod1B)
-        mod2B = torch.from_numpy(mod2_np).type_as(mod2B)
-
-    if device is not None:
-        mod1A = mod1A.to(device); mod2A = mod2A.to(device)
-        mod1B = mod1B.to(device); mod2B = mod2B.to(device)
-
-    return (mod1A, mod2A), (mod1B, mod2B), batch_indices
-
-# -------------------------
-# 3) Dataset preparation
-# -------------------------
 
 class SpatialDataset(Dataset):
-    def __init__(self, mod1_raw, mod2_raw):
-        self.mod1_raw = mod1_raw
-        self.mod2_raw = mod2_raw
+    def __init__(self, mod1_raw=None, mod2_raw=None, *, mods_raw=None):
+        if mods_raw is not None and (mod1_raw is not None or mod2_raw is not None):
+            raise ValueError("Pass mods_raw or the two-modality arguments, not both")
+        self.mods_raw = list(mods_raw) if mods_raw is not None else [mod1_raw, mod2_raw]
+        if len(self.mods_raw) < 2 or any(x is None or x.ndim != 2 for x in self.mods_raw):
+            raise ValueError("Provide at least two spot-by-feature tensors")
+        n = len(self.mods_raw[0])
+        if n == 0 or any(len(x) != n or x.shape[1] == 0 for x in self.mods_raw):
+            raise ValueError("Modalities must have aligned, nonempty rows and features")
+        self.mod1_raw, self.mod2_raw = self.mods_raw[:2]
 
     def __len__(self):
-        return self.mod1_raw.size(0)
+        return len(self.mods_raw[0])
 
     def __getitem__(self, idx):
-        return [self.mod1_raw[idx], self.mod2_raw[idx]], idx
+        return [x[idx] for x in self.mods_raw], idx
+
 
 class DualAugDataModule(pl.LightningDataModule):
-    def __init__(self, mod1_raw, mod2_raw, coords, neighbor_mask,
+    def __init__(self, mod1_raw=None, mod2_raw=None, coords=None, neighbor_mask=None,
                  batch_size=1024, augmentA=None, augmentB=None, device=None,
-                 spot_tokenization=False, shuffle=False):
+                 spot_tokenization=False, shuffle=False, *, mods_raw=None, neighbor_weight=None):
         super().__init__()
-        self.ds = SpatialDataset(mod1_raw, mod2_raw)
+        self.ds = SpatialDataset(mod1_raw, mod2_raw, mods_raw=mods_raw)
         self.bs = batch_size
-        self.augmentA = augmentA
-        self.augmentB = augmentB
+        self.augmentA, self.augmentB = augmentA, augmentB
         self.device = device
         self.spot_tokenization = spot_tokenization
         self.shuffle = bool(shuffle)
-        if coords is None:
-            raise ValueError("coords tensor is required for neighborhood masking.")
-        self.coords = coords
-        self.neighbor_mask = neighbor_mask
-
-        self.generator = torch.Generator()
-        self.generator.manual_seed(SEED)
+        if coords is None or coords.ndim != 2 or len(coords) != len(self.ds):
+            raise ValueError("Coordinates must have one row per spot")
+        for name, matrix in [("neighbor_mask", neighbor_mask), ("neighbor_weight", neighbor_weight)]:
+            if matrix is not None and matrix.shape != (len(self.ds), len(self.ds)):
+                raise ValueError(f"{name} must be (n_spots, n_spots)")
+        self.coords, self.neighbor_mask, self.neighbor_weight = coords, neighbor_mask, neighbor_weight
+        self.generator = torch.Generator().manual_seed(SEED)
 
         def _collate(batch):
-            viewA, viewB, batch_indices = collate_with_dual_augment(
-                batch, augmentA=self.augmentA, augmentB=self.augmentB, device=self.device
+            viewA, viewB, indices = collate_with_dual_augment(
+                batch, augmentA=self.augmentA, augmentB=self.augmentB,
+                device=self.device, neighbor_mask=self.neighbor_mask,
             )
-            coords_batch = self.coords[batch_indices]
-            mask = None
-            if self.neighbor_mask is not None:
-                mask = self.neighbor_mask[batch_indices][:, batch_indices]
-            meta = {
-                "coords": coords_batch,
-                "mask": mask,
-                "indices": batch_indices
-            }
+            mask = None if self.neighbor_mask is None else self.neighbor_mask[indices][:, indices]
+            meta = {"coords": self.coords[indices], "mask": mask, "indices": indices}
+            if self.neighbor_weight is not None:
+                meta["weight"] = self.neighbor_weight[indices][:, indices]
             if self.spot_tokenization:
-                n_modalities = len(viewA) if isinstance(viewA, (list, tuple)) else 1
-                meta["token_multiplier"] = n_modalities
-                meta["attn_mask_tokens"] = batch_indices.numel() * n_modalities
-                if mask is not None:
-                    # print(meta["attn_mask_tokens"], mask.shape, mask.sum().item())
-                    pass
+                meta["token_multiplier"] = len(viewA)
+                meta["attn_mask_tokens"] = len(indices) * len(viewA)
             return viewA, viewB, meta
         self._collate = _collate
 
     def train_dataloader(self):
-        return DataLoader(
-            self.ds, batch_size=self.bs, shuffle=self.shuffle,
-            num_workers=0, generator=self.generator, collate_fn=self._collate
-        )
+        return DataLoader(self.ds, batch_size=self.bs, shuffle=self.shuffle,
+                          num_workers=0, generator=self.generator, collate_fn=self._collate)

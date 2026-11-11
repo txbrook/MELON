@@ -45,7 +45,8 @@ class NeighborhoodGAT(nn.Module):
     def forward(self,
                 node_features: torch.Tensor,
                 coords: Optional[torch.Tensor] = None,
-                neighbor_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+                neighbor_mask: Optional[torch.Tensor] = None,
+                neighbor_weight: Optional[torch.Tensor] = None) -> torch.Tensor:
         if node_features.dim() != 2:
             raise ValueError("`node_features` must be rank-2 (n_nodes, feat_dim).")
 
@@ -55,12 +56,26 @@ class NeighborhoodGAT(nn.Module):
         mask = None
         if neighbor_mask is not None:
             mask = neighbor_mask.to(device=device, dtype=torch.bool)
-        elif coords is not None and self.k_neighbors is not None:
+        elif neighbor_weight is None and coords is not None and self.k_neighbors is not None:
             mask = self._knn_mask(coords.to(device), n_nodes)
 
         if mask is not None and self.include_self:
             mask = mask.clone()
             mask |= torch.eye(n_nodes, dtype=torch.bool, device=device)
+
+        weight = None
+        if neighbor_weight is not None:
+            weight = neighbor_weight.to(device=device, dtype=torch.float32)
+            if weight.shape != (n_nodes, n_nodes):
+                raise ValueError("neighbor_weight must be (n_nodes, n_nodes)")
+            if mask is None:
+                mask = weight > 0
+            weight = weight.clamp_min(0.0)
+            if self.include_self:
+                weight = weight.clone()
+                weight.fill_diagonal_(1.0)
+                mask = mask.clone()
+                mask.fill_diagonal_(True)
 
         projected = self.input_proj(node_features)  # (n_nodes, heads * hidden_dim)
         projected = projected.view(n_nodes, self.heads, self.hidden_dim)
@@ -69,6 +84,8 @@ class NeighborhoodGAT(nn.Module):
         attn_dst = torch.einsum("nhd,hd->nh", projected, self.attn_dst)
         logits = attn_src.unsqueeze(1) + attn_dst.unsqueeze(0)
         logits = self.leaky_relu(logits)
+        if weight is not None:
+            logits = logits + weight.clamp_min(1e-6).log().unsqueeze(-1)
 
         if mask is not None:
             logits = logits.masked_fill(~mask.unsqueeze(-1), float("-inf"))
@@ -225,6 +242,9 @@ class MELONModel(BaseModel):
         neighbor_mask = neighbor_meta.get("mask", None)
         if neighbor_mask is None:
             neighbor_mask = neighbor_meta.get("neighbor_mask", None)
+        neighbor_weight = neighbor_meta.get("weight", neighbor_meta.get("neighbor_weight"))
+        if neighbor_weight is not None:
+            neighbor_weight = torch.as_tensor(neighbor_weight, device=device, dtype=torch.float32)
         token_multiplier = int(neighbor_meta.get("token_multiplier", 1))
 
         if coords is not None and not torch.is_tensor(coords):
@@ -243,7 +263,8 @@ class MELONModel(BaseModel):
         attn_bias = self.neighborhood_attn(
             node_features,
             coords=coords,
-            neighbor_mask=neighbor_mask
+            neighbor_mask=neighbor_mask,
+            neighbor_weight=neighbor_weight,
         )
         if token_multiplier > 1 and attn_bias is not None:
             attn_bias = attn_bias.repeat(token_multiplier, token_multiplier)

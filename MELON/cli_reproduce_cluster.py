@@ -13,7 +13,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import normalize
-from .io import unique_index
+from .preprocessing import unique_index
 
 
 def spatial_metrics(xy, labels):

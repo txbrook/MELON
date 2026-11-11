@@ -1,4 +1,4 @@
-"""Display archived paper results; no model fitting or clustering is performed."""
+"""Plot spatial domains, embeddings and evaluation scores."""
 import json
 import math
 import io

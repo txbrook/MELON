@@ -8,10 +8,11 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from .engine import make_model, export_embedding, PaperAugmentations
-from .io import load_features
-from .publication_model.data import DualAugDataModule, SpatialOmicsAugmentations
-from .publication_model.utils import build_knn_mask
+from .model import make_model
+from .embedding import export_embedding
+from .preprocessing import load_features
+from .data import DualAugDataModule, SpatialOmicsAugmentations
+from .utils import build_knn_mask
 
 
 def main(folder):
@@ -69,11 +70,10 @@ def main(folder):
                 effective[key] = saved[key]
         effective["export_device"] = "cpu"
     else:
-        mask, weight = build_knn_mask(coords, k=defaults["training_spatial_k"], include_self=True, return_weights=True)
-        augmentation = SpatialOmicsAugmentations if defaults["historical_five_modal"] else PaperAugmentations
-        aug = dict(augmentations=["gaussian_noise", "feature_dropout", "neighbor_mix"], p=defaults["augment_p"])
+        mask, weight = build_knn_mask(coords, k=defaults["training_spatial_k"], include_self=True, return_weights=True, symmetric=True)
+        aug = dict(augmentations=["gaussian_noise", "feature_dropout", "neighbor_mix"], p=defaults["augment_p"], spatial_mix=defaults["historical_five_modal"])
         data = DualAugDataModule(mods_raw=tensors, coords=coords, neighbor_mask=mask, neighbor_weight=weight,
-                                 batch_size=args.batch_size, augmentA=augmentation(**aug), augmentB=augmentation(**aug),
+                                 batch_size=args.batch_size, augmentA=SpatialOmicsAugmentations(**aug), augmentB=SpatialOmicsAugmentations(**aug),
                                  spot_tokenization=True, shuffle=defaults["shuffle_batches"])
         model.save_hyperparameters({"reproduction_settings": effective})
         trainer = pl.Trainer(max_epochs=args.epochs, accelerator=args.accelerator, devices=1,
