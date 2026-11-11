@@ -15,11 +15,11 @@ PAPER_COLORS = ["#7EAF99", "#F39B7D", "#A9CBCA", "#BDB2C8", "#625C70",
 METRICS = {"ari": ("ARI", "#258f9d"), "nmi": ("NMI", "#ee765e"), "spari": ("SpARI", "#edbf4c")}
 
 
-def show(fig):
+def show(fig, *, crop=True):
     """Store a crisp, portable figure output directly in the notebook."""
     from IPython.display import Image, display
     buffer = io.BytesIO()
-    fig.savefig(buffer, format="png", dpi=120, bbox_inches="tight", facecolor="white")
+    fig.savefig(buffer, format="png", dpi=120, bbox_inches="tight" if crop else None, facecolor="white")
     display(Image(data=buffer.getvalue()))
     plt.close(fig)
 

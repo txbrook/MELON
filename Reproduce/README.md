@@ -12,7 +12,7 @@ Follow the saved MELON results through short explanations, reading code and disp
 
 ## Human tonsil
 
-[Open the notebook](human_tonsil/paper_figures.ipynb). Shows the saved MELON spatial partition and MELON modality ablations.
+[Open the notebook](human_tonsil/paper_figures.ipynb). Shows the saved MELON spatial partition.
 
 ![Human tonsil: saved MELON results](figures/human_tonsil_saved.png)
 
@@ -24,7 +24,7 @@ Follow the saved MELON results through short explanations, reading code and disp
 
 ## Human lymph node
 
-[Open the notebook](human_lymph_node/paper_figures.ipynb). Shows the saved MELON spatial partition and t-SNE.
+[Open the notebook](human_lymph_node/paper_figures.ipynb). Shows the saved MELON spatial partition.
 
 ![Human lymph node: saved MELON results](figures/human_lymph_node_saved.png)
 
@@ -36,13 +36,13 @@ Follow the saved MELON results through short explanations, reading code and disp
 
 ## MELON robustness
 
-[Open the notebook](robustness/paper_figures.ipynb). Reads the saved MELON sensitivity and component-ablation scores.
+[Open the notebook](robustness/paper_figures.ipynb). Reads the saved MELON neighborhood and augmentation sensitivity scores.
 
 ![MELON robustness: saved MELON results](figures/robustness_saved.png)
 
 ## MELON controlled simulation
 
-[Open the notebook](controlled_simulation/paper_figures.ipynb). Displays the stored MELON target-prediction scores and MELON ablation summaries.
+[Open the notebook](controlled_simulation/paper_figures.ipynb). Displays the stored MELON target-prediction scores.
 
 ![MELON controlled simulation: saved MELON results](figures/controlled_simulation_saved.png)
 

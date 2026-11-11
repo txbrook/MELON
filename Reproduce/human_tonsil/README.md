@@ -17,4 +17,4 @@ python Reproduce/human_tonsil/run.py --features data/tonsil/features.npz --out r
 python Reproduce/human_tonsil/cluster.py --embedding results/tonsil/embedding.csv --coords results/tonsil/coords.csv --out results/tonsil/clustering --umap
 ```
 
-For modality ablations, add `--omit RNA`, `--omit Protein`, or `--omit Image` to training and use a separate output directory. Training parameters are in [settings.json](settings.json).
+Training parameters are in [settings.json](settings.json).

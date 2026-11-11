@@ -2,7 +2,7 @@
 
 ## Results
 
-Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON inputs, embeddings, target-prediction scores and ablation summaries.
+Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON inputs, embeddings, target-prediction scores.
 
 ![Saved MELON prediction scores](../figures/controlled_simulation_saved.png)
 
