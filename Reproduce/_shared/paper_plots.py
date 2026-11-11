@@ -52,7 +52,7 @@ def saved_palette(path, key="method"):
     return {name: dict(zip(group.cluster, group.color_hex)) for name, group in palette.groupby(key)}
 
 
-def spatial_panels(frame, columns, *, colors=None, ncols=4, point_size=4, x="x", y="y", invert_y=True):
+def spatial_panels(frame, columns, *, colors=None, ncols=4, point_size=8, x="x", y="y", invert_y=True):
     if not np.isfinite(frame[[x, y]].to_numpy()).all():
         raise ValueError("Coordinates contain missing or nonfinite values")
     rows = math.ceil(len(columns) / ncols)
@@ -94,7 +94,7 @@ def saved_umap_panels(table, palette, methods):
         shade = rows.cluster.astype(str).map(palette[method])
         if shade.isna().any():
             raise ValueError(f"Missing UMAP colors for {method}")
-        ax.scatter(rows.UMAP1, rows.UMAP2, c=shade, s=2, linewidths=0, rasterized=True)
+        ax.scatter(rows.UMAP1, rows.UMAP2, c=shade, s=6, linewidths=0, rasterized=True)
         ax.set_title("MELON" if method == "MELON_14_15" else method.replace("_", " "), fontsize=11)
         ax.set_aspect("equal"); ax.axis("off")
     return fig
@@ -106,7 +106,7 @@ def sensitivity_panels(neighbors, augmentation):
                                     (axes[1], augmentation, "augment_p", "Augmentation probability, p")]:
         frame = frame.sort_values(column)
         for metric, (name, color) in METRICS.items():
-            ax.plot(frame[column], frame[metric], "o-", color=color, label=name, ms=4)
+            ax.plot(frame[column], frame[metric], "o-", color=color, label=name, ms=6)
         ax.set(xlabel=label, ylabel="Saved clustering score", ylim=(0, 1))
         ax.spines[["top", "right"]].set_visible(False)
         ax.legend(frameon=False, ncol=3, fontsize=9)
