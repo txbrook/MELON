@@ -40,7 +40,6 @@ h5ad = [
 ]
 dev = [
   "build>=1.2",
-  "pytest>=8.0",
   "ruff>=0.4",
   "twine>=5.0",
 ]
@@ -63,14 +62,3 @@ melon_pkg = "MELON"
 "melon_pkg.losses" = "MELON/losses"
 "melon_pkg.models" = "MELON/models"
 "melon_pkg.pl_modules" = "MELON/pl_modules"
-
-[tool.pytest.ini_options]
-minversion = "8.0"
-testpaths = ["MELON/tests", "Reproduce/tests"]
-filterwarnings = [
-  "ignore:Failed to load image Python extension:UserWarning",
-  "ignore:GPU available but not used:UserWarning",
-  "ignore:You defined a `validation_step` but have no `val_dataloader`:UserWarning",
-  "ignore:The total number of parameters detected may be inaccurate because the model contains an instance of `UninitializedParameter`:UserWarning",
-  "ignore:The 'train_dataloader' does not have many workers:UserWarning",
-]

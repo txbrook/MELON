@@ -1,6 +1,6 @@
 # Parameter sources
 
-The [analysis notebooks](README.md) connect model inputs, training, clustering and evaluation through computational code and intermediate files. Archived run settings can differ from the manuscript-default runners described below.
+The [analysis notebooks](.) connect model inputs, training, clustering and evaluation through computational code and intermediate files. Archived run settings can differ from the manuscript-default runners described below.
 
 The three 100-epoch workflows follow Supplementary Table 9 and the dataset descriptions in the supplied manuscript: 128-dimensional embeddings, batch size 2048, spatial k = 16, Adam (learning rate 0.001, weight decay 0.00001), temperature 0.1, and augmentation probability 0.8. Training seed 2027 is the original package default; the manuscript does not specify its numerical value. Clustering seed is 2025.
 
