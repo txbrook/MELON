@@ -27,8 +27,8 @@ def spatial_metrics(xy, labels):
     return result
 
 
-def main(folder):
-    config = json.loads((folder / "settings.json").read_text())
+def main(config):
+    config = dict(config)
     p = argparse.ArgumentParser(description=f"Cluster {config['name']}")
     p.add_argument("--embedding", type=Path, required=True)
     p.add_argument("--coords", type=Path, required=True)

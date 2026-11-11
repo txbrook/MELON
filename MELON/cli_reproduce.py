@@ -15,8 +15,8 @@ from .data import DualAugDataModule, SpatialOmicsAugmentations
 from .utils import build_knn_mask
 
 
-def main(folder):
-    defaults = json.loads((folder / "settings.json").read_text())
+def main(defaults):
+    defaults = dict(defaults)
     p = argparse.ArgumentParser(description=defaults["name"])
     p.add_argument("--features", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
