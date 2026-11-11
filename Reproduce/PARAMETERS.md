@@ -1,5 +1,7 @@
 # Parameter sources
 
+For the provenance of **saved paper outputs**, use the [figure notebooks](README.md) and [figure sources](FIGURE_SOURCES.md). Their archived run settings can differ from the manuscript-default runners described below. The notebooks read those existing results directly.
+
 The three 100-epoch workflows follow Supplementary Table 9 and the dataset descriptions in the supplied manuscript: 128-dimensional embeddings, batch size 2048, spatial k = 16, Adam (learning rate 0.001, weight decay 0.00001), temperature 0.1, and augmentation probability 0.8. Training seed 2027 is the original package default; the manuscript does not specify its numerical value. Clustering seed is 2025.
 
 The five-modality mouse brain workflow follows the saved paper-run metadata: 10 epochs, seed 2025, batch size 2048, training k = 16, augmentation probability 1.0, and spatial export k = 14. It preserves the archived AdamW optimizer, neighbor-mixing implementation, and two-direction contrastive loss. Clustering uses PCA20, row L2 normalization, a 15-neighbor graph, and Leiden resolution 0.70357421875. The archived partition contains 17 clusters; a retrained model may produce a different count, which is reported without forcing labels.

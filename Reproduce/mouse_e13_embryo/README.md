@@ -1,5 +1,13 @@
 # Mouse E13 embryo
 
+## Paper figures
+
+Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved results into Fig. 4d-f. The notebook places the explanation, reading code and figure output together.
+
+![Saved spatial partitions](../figures/mouse_e13_embryo_saved.png)
+
+## Run from preprocessed data
+
 Input: 2,187 aligned spots in `features.npz`, with `barcodes`, `coords`, `RNA` (normalized log-expression), and `ATAC` (50-dimensional TF-IDF/LSI features). Both modalities must already be preprocessed.
 
 Train for 100 epochs with batch size 2,048. Clustering evaluates 10, 12, 14, 16, and 18 clusters; the main spatial partition uses 14. Run from the repository root:
