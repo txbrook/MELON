@@ -48,6 +48,6 @@ Follow each analysis from multimodal inputs through MELON configuration, represe
 
 ## Training and clustering
 
-Dataset directories retain their scripts for preprocessed, barcode-aligned input. Parameters are in [PARAMETERS.md](PARAMETERS.md).
+Dataset directories retain their scripts for preprocessed, barcode-aligned input. Model and clustering parameters can be edited directly in each notebook; [PARAMETERS.md](PARAMETERS.md) documents their sources.
 
 Please follow the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/) for installation and usage. Plotting dependencies are listed in [requirements.txt](requirements.txt).

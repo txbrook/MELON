@@ -17,4 +17,4 @@ python Reproduce/human_lymph_node/run.py --features data/lymph_node/features.npz
 python Reproduce/human_lymph_node/cluster.py --embedding results/lymph_node/embedding.csv --coords results/lymph_node/coords.csv --out results/lymph_node/clustering
 ```
 
-Add `--truth data/lymph_node/truth.csv` for ARI/NMI evaluation (CSV columns: `barcode,label`), and `--umap` for UMAP coordinates. Parameters are in [settings.json](settings.json).
+Add `--truth data/lymph_node/truth.csv` for ARI/NMI evaluation (CSV columns: `barcode,label`), and `--umap` for UMAP coordinates. Edit the model and clustering parameters directly in the configuration cell of the [notebook](analysis.ipynb).

@@ -17,4 +17,4 @@ python Reproduce/human_tonsil/run.py --features data/tonsil/features.npz --out r
 python Reproduce/human_tonsil/cluster.py --embedding results/tonsil/embedding.csv --coords results/tonsil/coords.csv --out results/tonsil/clustering --umap
 ```
 
-Training parameters are in [settings.json](settings.json).
+Edit the training parameters directly in the configuration cell of the [notebook](analysis.ipynb).

@@ -17,4 +17,4 @@ python Reproduce/mouse_e13_embryo/run.py --features data/e13/features.npz --out 
 python Reproduce/mouse_e13_embryo/cluster.py --embedding results/e13/embedding.csv --coords results/e13/coords.csv --out results/e13/clustering
 ```
 
-Add `--truth data/e13/truth.csv` for ARI/NMI evaluation (CSV columns: `barcode,label`), and `--umap` for UMAP coordinates. Parameters are in [settings.json](settings.json).
+Add `--truth data/e13/truth.csv` for ARI/NMI evaluation (CSV columns: `barcode,label`), and `--umap` for UMAP coordinates. Edit the model and clustering parameters directly in the configuration cell of the [notebook](analysis.ipynb).
