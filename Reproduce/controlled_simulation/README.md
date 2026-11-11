@@ -1,6 +1,8 @@
 # Controlled simulation
 
-Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved MELON inputs, embeddings and target-prediction scores for Supplementary Fig. 10.
+## Results
+
+Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON inputs, embeddings, target-prediction scores and ablation summaries.
 
 ![Saved MELON prediction scores](../figures/controlled_simulation_saved.png)
 

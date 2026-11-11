@@ -40,7 +40,7 @@ model, mod1_t, mod2_t, coords_t, neighbor_mask = MELON(
 )
 ```
 
-For the clustering analyses, follow the [reproduction instructions](../Reproduce/clustering/README.md). Data preparation and the analysis workflow are described in the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/).
+For the clustering analyses, follow the [reproduction instructions](../Reproduce/mouse_e15_brain/README.md). Data preparation and the analysis workflow are described in the [Tutorials](https://txbrook.github.io/MELON_website/tutorials/).
 
 ## Tests
 

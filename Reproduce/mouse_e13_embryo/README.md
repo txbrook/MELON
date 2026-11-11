@@ -1,8 +1,8 @@
 # Mouse E13 embryo
 
-## Paper figures
+## Results
 
-Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved results into Fig. 4d-f. The notebook interleaves explanations, reading code and MELON result plots.
+Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON results through explanations, code and plots.
 
 ![Saved MELON spatial partition](../figures/mouse_e13_embryo_saved.png)
 

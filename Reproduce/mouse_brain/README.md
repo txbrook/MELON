@@ -1,8 +1,8 @@
 # Five-modality mouse brain
 
-## Paper figures
+## Results
 
-Open [paper_figures.ipynb](paper_figures.ipynb) to follow the saved results into Fig. 3e-j. The notebook interleaves explanations, reading code and MELON result plots.
+Open the [analysis notebook](paper_figures.ipynb) to follow the saved MELON results through explanations, code and plots.
 
 ![Saved MELON spatial partition](../figures/mouse_brain_saved.png)
 
