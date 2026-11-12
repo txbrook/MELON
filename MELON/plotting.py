@@ -151,3 +151,127 @@ def simulation_score_panels(scores):
            xlabel="Target", ylim=(0, 1.08), ylabel="Balanced accuracy (mean ± s.d.)")
     ax.spines[["top", "right"]].set_visible(False)
     return fig
+
+
+def marker_expression_panels(expression, style):
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list("marker_expression", ["#F6F1D9", "#A9CBCA", "#278F9B", "#064D59"])
+    fig = plt.figure(figsize=(10, 5.8), layout="constrained")
+    grid = fig.add_gridspec(2, 2, width_ratios=[1, 2.4])
+    order = style["domain_order"]
+    for row, gene in enumerate(["Col1a1", "Neurod2"]):
+        ax = fig.add_subplot(grid[row, 0])
+        points = ax.scatter(expression.x, expression.y, c=expression[gene], s=10,
+                            linewidths=0, cmap=cmap, vmin=0)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_title(gene)
+        fig.colorbar(points, ax=ax, shrink=.8, fraction=.04, pad=.025)
+        ax = fig.add_subplot(grid[row, 1])
+        values = [expression.loc[expression.domain == d, gene].to_numpy() for d in order]
+        parts = ax.violinplot(values, positions=np.arange(len(order)), widths=.85,
+                              showmedians=True, showextrema=False)
+        for body, domain in zip(parts["bodies"], order):
+            body.set_facecolor(style["domain_colors"][str(domain)])
+            body.set_edgecolor("#777777")
+            body.set_linewidth(.4)
+            body.set_alpha(.8)
+        parts["cmedians"].set(color="#555555", linewidth=.8)
+        ax.set_xticks(range(len(order)), order)
+        ax.set_ylim(0, max(1, np.ceil(expression[gene].max())))
+        ax.set_ylabel("Log-normalized expression")
+        ax.set_title(gene + " by domain")
+        if row == 1:
+            ax.set_xlabel("MELON domain")
+        ax.spines[["top", "right"]].set_visible(False)
+    return fig
+
+
+def domain_enrichment_panel(matrix):
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list("domain_enrichment", ["#F4F1DE", "#CDD9C2", "#7CB6B4", "#298E9C", "#07535E"])
+    labels = {"synapse organization": "Synapse organization",
+              "nervous system development": "Nervous system development",
+              "neuron differentiation": "Neuron differentiation",
+              "generation of neurons": "Generation of neurons",
+              "multicellular organism development": "Multicellular development"}
+    fig, ax = plt.subplots(figsize=(6.2, 5.6), layout="constrained")
+    im = ax.imshow(matrix, cmap=cmap, aspect="auto", vmin=0,
+                   vmax=max(float(matrix.to_numpy().max()), 1e-12))
+    ax.set_yticks(range(len(matrix)), matrix.index)
+    ax.set_xticks(range(len(matrix.columns)), [labels.get(t, t) for t in matrix.columns],
+                  rotation=45, ha="right", fontsize=9)
+    ax.set_ylabel("MELON domain")
+    ax.set_title("Domain enrichment")
+    ax.tick_params(length=0)
+    fig.colorbar(im, ax=ax, fraction=.045, pad=.03, label=r"$-\log_{10}(P)$")
+    return fig
+
+
+def domain_network_panels(tsne, edges, style):
+    import networkx as nx
+    fig, axes = plt.subplots(1, 2, figsize=(9.6, 4.6), layout="constrained")
+    colors = [style["domain_colors"][str(d)] for d in tsne.domain]
+    axes[0].scatter(tsne.TSNE1, tsne.TSNE2, c=colors, s=9, alpha=.85, linewidths=0)
+    centers = tsne.groupby("domain")[["TSNE1", "TSNE2"]].median()
+    for domain, row in centers.iterrows():
+        axes[0].text(*row, str(domain), ha="center", va="center", fontsize=10,
+                     bbox={"facecolor": "white", "edgecolor": "none", "alpha": .75, "pad": .4})
+    graph = nx.Graph()
+    for domain, count in tsne.groupby("domain").size().items():
+        graph.add_node(domain, n_spots=int(count))
+    for row in edges.itertuples():
+        if row.source != row.target:
+            graph.add_edge(row.source, row.target, weight=row.edge_count)
+    positions = {domain: tuple(row) for domain, row in centers.iterrows()}
+    weights = np.array([graph.edges[e]["weight"] for e in graph.edges()])
+    widths = .5 + 3 * weights / max(weights.max(initial=0), 1)
+    nx.draw_networkx_edges(graph, positions, ax=axes[1], width=widths, alpha=.45, edge_color="#ADB4BA")
+    nx.draw_networkx_nodes(graph, positions, ax=axes[1],
+                           node_size=[100 + graph.nodes[d]["n_spots"] * .9 for d in graph],
+                           node_color=[style["domain_colors"][str(d)] for d in graph],
+                           edgecolors="white", linewidths=.5)
+    nx.draw_networkx_labels(graph, positions, ax=axes[1], font_size=11)
+    axes[1].set_xlim(axes[0].get_xlim())
+    axes[1].set_ylim(axes[0].get_ylim())
+    for ax, title in zip(axes, ["MELON t-SNE", "Spatial domain adjacency"]):
+        ax.axis("off")
+        ax.set_box_aspect(1)
+        ax.set_title(title)
+    return fig
+
+
+def regulatory_roc_panels(curves):
+    fig, axes = plt.subplots(1, 2, figsize=(8.6, 4.2), layout="constrained")
+    for ax, name, title in zip(axes, ["scHiCAR", "Brain2023"], ["scHiCAR", "Brain cCRE-gene"]):
+        curve, auc = curves[name]
+        ax.step(curve.FPR, curve.TPR, where="post", color="#E77963", lw=1.8,
+                label=f"MELON AUROC = {auc:.3f}")
+        ax.plot([0, 1], [0, 1], color="#BBBBBB", lw=.8, ls="--", zorder=0)
+        ax.set(xlim=(0, 1), ylim=(0, 1), xlabel="False-positive rate", ylabel="True-positive rate", title=title)
+        ax.set_box_aspect(1)
+        ax.legend(loc="lower right", frameon=False, fontsize=10)
+        ax.spines[["top", "right"]].set_visible(False)
+    return fig
+
+
+def gene_peak_panels(pairs):
+    fig, axes = plt.subplots(3, len(pairs), figsize=(3.7 * len(pairs), 8.6),
+                             squeeze=False, layout="constrained")
+    for col, (gene, (peak, frame)) in enumerate(pairs.items()):
+        chrom, start, end = peak.split("-")
+        axes[0, col].set_title(f"{gene}\n{chrom}:{start}-{end}", fontsize=10)
+        for row, (key, cmap, label) in enumerate([
+            ("gene_expr", "Blues", "RNA"), ("peak_acc", "Purples", "ATAC"),
+            ("pair_activity", "YlOrBr", "Pair activity")]):
+            ax = axes[row, col]
+            values = frame[key].to_numpy()
+            maximum = max(float(np.percentile(values, 99)), 1e-12)
+            points = ax.scatter(frame.x, frame.y, c=values, s=10, linewidths=0,
+                                cmap=cmap, vmin=0, vmax=maximum)
+            ax.set_aspect("equal")
+            ax.axis("off")
+            fig.colorbar(points, ax=ax, shrink=.75, fraction=.035, pad=.02)
+            if col == 0:
+                ax.text(-.07, .5, label, rotation=90, va="center", ha="right", transform=ax.transAxes)
+    return fig

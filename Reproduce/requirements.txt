@@ -7,3 +7,5 @@ ipython>=8
 
 # Robustness, in R: remotes::install_github("yinqiaoyan/spARI@fb739c8674abe22a1b1051760c1212305b2f3bba")
 rpy2>=3.5,<3.6
+
+requests>=2.31
